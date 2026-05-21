@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>可信任的分布式系統 —— 從架構衝突到信任機制的建立</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Roboto+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #0f172a;
+            color: #334155;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden; /* 隱藏網頁捲軸，讓它像真簡報 */
+        }
+        .presentation-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 1050px;
+            padding: 0 60px; /* 為左右箭頭留出空間 */
+        }
+        .container {
+            width: 100%;
+            position: relative;
+        }
+        .slide {
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.5);
+            padding: 50px 60px;
+            border-left: 8px solid #2563eb;
+            position: relative;
+            min-height: 600px;
+            display: none; /* 預設全部隱藏 */
+            flex-direction: column;
+            justify-content: flex-start;
+            animation: fadeIn 0.4s ease; /* 換頁淡入效果 */
+        }
+        /* 當前顯示的投影片 */
+        .slide.active {
+            display: flex;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .slide-title-page {
+            background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%);
+            color: #ffffff;
+            border-left: none;
+            text-align: center;
+            padding: 100px 50px;
+            justify-content: center;
+        }
+        .slide-title-page h1 {
+            font-size: 28pt;
+            font-weight: 800;
+            margin-top: 0;
+            margin-bottom: 24px;
+            color: #ffffff;
+            line-height: 1.3;
+            letter-spacing: -0.5px;
+        }
+        .slide-title-page h2 {
+            font-size: 16pt;
+            color: #38bdf8;
+            font-weight: 400;
+            margin-bottom: 40px;
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        .slide-title-page .quote-box {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 24px;
+            max-width: 700px;
+            margin: 0 auto;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .slide-title-page .quote {
+            font-size: 12pt;
+            font-style: italic;
+            color: #cbd5e1;
+            margin: 0;
+        }
+        h2 {
+            font-size: 20pt;
+            color: #1e3a8a;
+            margin-top: 0;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e2e8f0;
+            font-weight: 700;
+        }
+        h3 {
+            font-size: 14pt;
+            color: #2563eb;
+            margin-top: 15px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        p, li {
+            font-size: 11pt;
+            color: #475569;
+            margin-bottom: 8px;
+        }
+        ul, ol {
+            margin-top: 4px;
+            padding-left: 24px;
+        }
+        li {
+            margin-bottom: 10px;
+        }
+        strong {
+            color: #0f172a;
+            font-weight: 600;
+        }
+        .highlight-box {
+            background-color: #f8fafc;
+            border-left: 4px solid #3b82f6;
+            padding: 16px;
+            margin: 15px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .alert-box {
+            background-color: #fef2f2;
+            border-left: 4px solid #ef4444;
+            padding: 16px;
+            margin: 15px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .success-box {
+            background-color: #f0fdf4;
+            border-left: 4px solid #22c55e;
+            padding: 16px;
+            margin: 15px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .box-title {
+            font-weight: bold;
+            margin-bottom: 4px;
+            font-size: 11.5pt;
+        }
+        .highlight-box .box-title { color: #1e40af; }
+        .alert-box .box-title { color: #991b1b; }
+        .success-box .box-title { color: #166534; }
+        
+        .math {
+            font-family: 'Times New Roman', Times, serif;
+            font-style: italic;
+            font-weight: bold;
+            color: #1e293b;
+        }
+        .math-display {
+            text-align: center;
+            margin: 20px 0;
+            font-size: 13pt;
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            font-family: 'Roboto Mono', monospace;
+            font-weight: bold;
+            color: #0f172a;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 10.5pt;
+        }
+        th, td {
+            border: 1px solid #cbd5e1;
+            padding: 12px 14px;
+            text-align: left;
+            vertical-align: top;
+        }
+        th {
+            background-color: #f1f5f9;
+            color: #1e293b;
+            font-weight: 600;
+        }
+        tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+        .slide-footer {
+            position: absolute;
+            bottom: 20px;
+            right: 30px;
+            font-size: 9pt;
+            color: #94a3b8;
+            font-weight: 500;
+        }
+        .slide-badge {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            background: #f1f5f9;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 8.5pt;
+            color: #64748b;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        /* 導覽按鈕控制樣式 */
+        .nav-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+        .nav-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            color: #38bdf8;
+            scale: 1.05;
+        }
+        #prev-btn { left: 0; }
+        #next-btn { right: 0; }
+
+        /* 進度條樣式 */
+        .progress-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            z-index: 20;
+        }
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #3b82f6, #38bdf8);
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+
+<div class="presentation-wrapper">
+    <button class="nav-btn" id="prev-btn" onclick="changeSlide(-1)"><i class="fas fa-chevron-left"></i></button>
+    <button class="nav-btn" id="next-btn" onclick="changeSlide(1)"><i class="fas fa-chevron-right"></i></button>
+
+    <div class="container" id="slides-master">
+
+        <div class="slide slide-title-page active">
+            <span class="slide-badge">Slide 1</span>
+            <h1>可信任的分布式系統</h1>
+            <h2>從架構衝突到信任機制的建立</h2>
+            <div class="quote-box">
+                <p class="quote">透過共識機制與 CP 架構，技術性消滅跨組織的商業對帳成本。<br>從零信任的商業現實出發，用數學、密碼學與分散式共識，打造一把跨越組織邊界的絕對信任之鑰。</p>
+            </div>
+            <div class="slide-footer">引言</div>
+        </div>
+
+        <div class="slide">
+            <span class="slide-badge">Slide 2</span>
+            <h2>【起】什麼是分布式系統？與其核心哲學</h2>
+            
+            <h3>核心定義</h3>
+            <p>將多台獨立的電腦（節點）透過網路連接，在使用者眼中卻像是一個單一的整體系統。</p>
+            
+            <h3>架構對比</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">架構類型</th>
+                        <th style="width: 40%;">優勢</th>
+                        <th style="width: 35%;">致命風險</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>單體系統 (Monolithic)</strong></td>
+                        <td>內部調用、速度極快、部署簡單。</td>
+                        <td><span style="color: #ef4444; font-weight: 600;">單點故障 (SPOF)</span>：一台主機崩潰，全盤皆輸。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>分布式系統 (Distributed)</strong></td>
+                        <td>將風險分散，具備高度的可擴展性與容錯性。</td>
+                        <td>網路延遲、節點狀態不一致、管理複雜度高。</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="highlight-box">
+                <div class="box-title">核心工程思維：為失敗而設計 (Design for Failure)</div>
+                <p>硬體損壞、網路斷線不是「意外」，而是必然。系統假設「隨時會壞」，透過隔離與自動復原確保服務不中斷。</p>
+            </div>
+            
+            <p><strong>實務驗證：混沌猴子 (Chaos Monkey)</strong><br>在生產環境中隨機殺死伺服器，強迫系統具備極高的高容錯韌性。</p>
+            
+            <div class="slide-footer">核心哲學</div>
+        </div>
+
+        <div class="slide">
+            <span class="slide-badge">Slide 3</span>
+            <h2>【承】商業現實中的信任鴻溝</h2>
+            <h3>案例背景：Gogoro 與 台新銀行</h3>
+            <p>Gogoro（能源與點數系統）與台新銀行（金融與聯名卡系統）各自擁有強大且完善的分布式系統。</p>
+            
+            <div class="alert-box">
+                <div class="box-title">靈魂拷問：這兩個系統互相信任嗎？</div>
+                <p><strong>答案是不信任。</strong></p>
+            </div>
+            
+            <h3>技術現狀（零信任）</h3>
+            <p>跨組織的系統設計，本質上必須建立在「完全不信任」的前提下。若直接對接，將面臨以下潛在風險：</p>
+            <ul>
+                <li><strong>惡意篡改：</strong>資料可能被任何一方的內部人員惡意改動。</li>
+                <li><strong>網路漏單：</strong>傳輸過程中遭遇網路波動導致掉包或漏單。</li>
+                <li><strong>系統 Bug：</strong>任何一方系統邏輯出錯，都會直接導致另一方的帳目產生混亂。</li>
+            </ul>
+            <div class="slide-footer">商業現實</div>
+        </div>
+
+        <div class="slide">
+            <span class="slide-badge">Slide 4</span>
+            <h2>【承】傳統跨組織交易的死局與妥協</h2>
+            
+            <h3>傳統分散式解法：兩階段提交 (2PC - Two-Phase Commit)</h3>
+            <ul>
+                <li><strong>運作機制：</strong>協調者問：「都準備好了嗎？」 ➔ 兩邊回應「OK」 ➔ 協調者下令「執行！」。</li>
+                <li><strong style="color: #ef4444;">致命缺點（同步阻塞）：</strong>若一方在第二階段（執行階段）突然斷線，另一方會被「鎖死」在等待狀態。單點故障會因此擴散，導致跨組織難以達成即時連線。</li>
+            </ul>
+            
+            <div class="alert-box">
+                <div class="box-title">商業上的無奈妥協：事後對帳 (Reconciliation)</div>
+                <p>既然技術上無法做到即時信任，企業只好選擇在每天營業結束（T+1）時，各自匯出 CSV 檔案進行人工或自動化比對。</p>
+                <p><strong>痛點：</strong>時效性差、耗費大量人力抓漏與平帳。<br><strong>結論：</strong><span style="color: #b91c1c; font-weight: bold;">「對帳」，就是企業因為「外部信任缺失」而付出的昂貴商業代價。</span></p>
+            </div>
+            <div class="slide-footer">傳統死局</div>
+        </div>
+
+        <div class="slide">
+            <span class="slide-badge">Slide 5</span>
+            <h2>【轉】打造跨組織信任：共享帳本與其致命威脅</h2>
+            
+            <p><strong>核心命題：</strong>為了消滅對帳成本，Gogoro 與台新銀行需要共用一個<strong>「不可篡改的共享帳本」</strong>。然而，系統一旦跨出單一組織的安全邊界，進入共同維護的開放網路，就會面臨兩大傳統系統無法解決的惡意威脅：</p>
+            
+            <div class="alert-box">
+                <div class="box-title">威脅一：女巫攻擊 (Sybil Attack)</div>
+                <p>惡意攻擊者可以用極低成本偽造出成千上萬個「虛擬假節點」湧入網路。如果在系統中採用「一節點一票」的投票機制，攻擊者就能瞬間取得多數決，徹底接管並篡改帳本。</p>
+            </div>
+            
+            <div class="alert-box">
+                <div class="box-title">威脅二：拜占庭將軍問題 (Byzantine Fault)</div>
+                <p>傳統分布式系統只防範「節點壞掉（故障）」，共享帳本則必須防範「節點說謊」。惡意節點會故意發送假資料、矛盾指令，或企圖篡改已經發生的歷史交易。</p>
+            </div>
+            <div class="slide-footer">共享帳本威脅</div>
+        </div>
+
+        <div class="slide">
+            <span class="slide-badge">Slide 6</span>
+            <h2>【轉】分布式系統的鐵律：CAP 與 PACELC 定理</h2>
+            
+            <h3>1. CAP 定理</h3>
+            <p>一致性（<span class="math">C</span>）、可用性（<span class="math">A</span>）、分區容錯性（<span class="math">P</span>），三者只能擇二。現實網路必定存在分區限制（<span class="math">P</span>），因此工程師只能在 <span class="math">CP</span> 與 <span class="math">AP</span> 之間進行抉擇。</p>
+            
+            <h3>2. 進階鐵律：PACELC 定理（更貼近現實的權衡）</h3>
+            <p><strong>If P</strong> (當網路斷線分區時)：選擇 <strong>A</strong>vailability（可用）還是 <strong>C</strong>onsistency（一致）？<br>
+            <strong>Else</strong> (當網路正常運作時)：選擇 <strong>L</strong>atency（低延遲/速度快）還是 <strong>C</strong>onsistency（絕對一致）？</p>
+            
+            <div class="highlight-box">
+                <div class="box-title">聽眾秒懂類比（台北與紐約的精品店）</div>
+                <ul>
+                    <li><strong>斷線時 (If P)：</strong>要冒著數據不對稱的風險繼續超賣（<span class="math">A</span>），還是為了資料正確直接暫停營業（<span class="math">C</span>）？</li>
+                    <li><strong>正常時 (Else)：</strong>要追求秒速結帳事後非同步對帳（<span class="math">L</span>），還是讓客人現場等待全球數據同步確認（<span class="math">C</span>）？</li>
+                </ul>
+            </div>
+            <div class="slide-footer">理論鐵律</div>
+        </div>
+
+        <div class="slide">
+            <span class="slide-badge">Slide 7</span>
+            <h2>【解】深入比特幣引擎：一筆交易的無情驗證</h2>
+            <p style="font-style: italic; color: #64748b; margin-bottom: 25px;">（以下章節展示如何將公有鏈的極致防禦機制，轉化為企業跨組織對帳的終極解方）</p>
+            
+            <h3>第一階段：交易的誕生與廣播 (Broadcast)</h3>
+            <p>當使用者觸發跨組織行為（如：Gogoro 換電同時觸發台新聯名卡扣點），系統發起一筆交易並使用私鑰進行數位簽章，廣播到點對點（P2P）網路的記憶體池（Mempool）中。</p>
+            
+            <h3>第二階段：無情的獨立驗證 (Verification)</h3>
+            <p>全網所有獨立節點收到交易後，會自動進行冷酷的數學與密碼學驗證：</p>
+            <ul>
+                <li>該數位簽章是否正確？</li>
+                <li>發起帳戶的餘額或點數是否足夠？</li>
+            </ul>
+            
+            <div class="success-box">
+                <div class="box-title">拜占庭防禦第一道門檻</div>
+                <p>叛徒或作惡組織若企圖亂發假交易，密碼學算式一驗證不通過，瞬間就會被誠實節點無情丟棄，連進入 Mempool 的機會都沒有。</p>
+            </div>
+            <div class="slide-footer">交易生存戰 (1/4)</div>
+        </div>
+
+        <div class="slide">
+            <span class="slide-badge">Slide 8</span>
+            <h2>【解】PoW 算力護城河：打包與競爭</h2>
+            
+            <h3>第三階段：打包交易與構建區塊</h3>
+            <p>網絡中的節點（礦工）將 Mempool 中合法的企業交易組合成候選區塊，該區塊結構中包含了一個關鍵變數：<span class="math">Nonce</span>（隨機數）。</p>
+            
+            <h3>第四階段：算力角力，尋找黃金 Nonce</h3>
+            <p>系統規則要求節點必須不斷盲猜 <span class="math">Nonce</span> 的值，套入雙重 SHA-256 雜湊公式，直到計算結果小於目標難度值（<span class="math">Target</span>）：</p>
+            
+            <div class="math-display">
+                SHA-256(SHA-256(Block Header)) &lt; Target
+            </div>
+            
+            <p><strong>無捷徑的暴力破解：</strong><br>這條公式沒有任何數學捷徑可走，純粹依賴計算晶片進行瘋狂的暴力破解（Hash 碰撞），必須耗費真實的物理計算資源與時間。</p>
+            <div class="slide-footer">交易生存戰 (2/4)</div>
+        </div>
+
+        <div class="slide">
+            <span class="slide-badge">Slide 9</span>
+            <h2>【解】物理熱力學如何粉碎女巫攻擊？</h2>
+            
+            <div class="success-box">
+                <div class="box-title">破局之道：將「1 IP = 1 票」徹底改為「1 算力 = 1 票」</div>
+                <p>這是中本聰最天才的設計——將虛擬世界的信任，直接錨定在現實世界的「物理熱力學」能量消耗上。</p>
+            </div>
+            
+            <h3>終極收斂：為什麼女巫攻擊在此機制下徹底失效？</h3>
+            <ul>
+                <li>惡意攻擊者可以寫腳本，在短短一秒鐘內啟動 100 萬個虛擬假 IP 節點。</li>
+                <li><strong>然而，這 100 萬個虛擬節點背後沒有實體晶片支持、沒有消耗真實電力，其算力份額無限趨近於零。</strong></li>
+                <li>在 PoW（工作量證明）的世界裡，沒有投入物理能量與電力消耗，女巫節點連一個合法的區塊都無法產出。</li>
+            </ul>
+            <p>透過將記帳權與物理算力綁定，作惡的虛擬節點在數學與物理定律面前無所遁形。</p>
+            <div class="slide-footer">交易生存戰 (3/4)</div>
+        </div>
+
+        <div class="slide">
+            <span class="slide-badge">Slide 10</span>
+            <h2>【解】最長鏈原則與 51% 算力障礙</h2>
+            
+            <h3>第六階段：拜占庭叛徒的終極謊言（雙重支付 / 雙花）</h3>
+            <p>作惡組織企圖抵賴交易，一邊享受了服務，一邊在暗中偷偷打包另一條隱密的分支鏈（B鏈），試圖篡改歷史，將付出去的錢轉回給自己。</p>
+            
+            <h3>第七階段：中本聰共識（最長鏈原則）</h3>
+            <p>全網所有誠實節點永遠只承認<strong>「累積了最多 PoW 工作量（也就是長度最長）」</strong>的區塊鏈為唯一的歷史真相。</p>
+            
+            <h3>第八階段：算力追逐戰與經濟學賽局</h3>
+            <ul>
+                <li>叛徒的造假 B 鏈若想被全網承認，其運算速度必須追上並超越全網其他所有誠實礦工的算力總和（即 <span style="color: #ef4444; font-weight: bold;">51% 攻擊</span>）。</li>
+                <li><strong>經濟學防線：</strong>掌握全球 51% 的算力需要投入天文數字的晶片硬體與電力成本。如果發動攻擊摧毀了系統信任，導致代幣或系統價值瞬間歸零，作惡者的巨大投資將血本無歸。</li>
+            </ul>
+            <p>該機制成功讓<strong>「保持誠實」成為利潤最大化的唯一策略</strong>，徹底擊潰了拜占庭將軍的叛變動機。</p>
+            <div class="slide-footer">交易生存戰 (4/4)</div>
+        </div>
+
+        <div class="slide">
+            <span class="slide-badge">Slide 11</span>
+            <h2>【應用】企業對帳的終極解方：引入「絕對真理鏈」</h2>
+            
+            <h3>從虛擬貨幣到企業架構的範式轉換</h3>
+            <p>Gogoro 與台新銀行不再各自維護孤立的資料庫，也不再依賴脆弱的即時數據同步，而是將交易數據、點數清算與扣款紀錄，直接寫入由 PoW 機制守護的去中心化共享帳本。</p>
+            
+            <div class="success-box">
+                <div class="box-title">消滅對帳的底層邏輯</div>
+                <ul>
+                    <li><strong>傳統對帳的根源：</strong>過去對帳是因為雙方各自記帳（雙重帳本），且資訊存在被不經意篡改或出錯的空間。</li>
+                    <li><strong>PoW 帳本的顛覆：</strong>透過算力護城河與工作量證明，數據一旦寫入區塊鏈，便具備不可逆性（Irreversibility）。</li>
+                </ul>
+                <p>這意味著世界上不再有「Gogoro 的資料」與「台新銀行的資料」之分，網路上只有一條經過物理熱力學與密碼學共同認證的<strong>「絕對真理鏈」</strong>。</p>
+            </div>
+            <div class="slide-footer">企業解方</div>
+        </div>
+
+        <div class="slide">
+            <span class="slide-badge">Slide 12</span>
+            <h2>【分析】PACELC 視角下的新商業秩序</h2>
+            
+            <p>引入比特幣 PoW 機制後，我們重新審視這場跨組織共享帳本在 PACELC 定理下的抉擇：</p>
+            <p><strong>本質傾向：</strong>比特幣機制本質上偏向 <strong>AP (可用性)</strong> 與 <strong>事後一致性</strong>。在網路極端異常時允許短暫分叉，但最終會透過「最長鏈原則」強制收斂成唯一真相。</p>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">評估維度</th>
+                        <th style="width: 37%;">傳統 CSV 事後對帳 (T+1)</th>
+                        <th style="width: 38%;">比特幣共識機制帳本 (即時確認)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>正常時延遲<br><span class="math">(Else: L vs C)</span></strong></td>
+                        <td>追求極致低延遲（<span class="math">L</span>），但代價是雙方冒著巨大的人力與時間成本去平帳。</td>
+                        <td>犧牲了些許區塊打包與確認的延遲（<span class="math">L</span>），直接換取寫入即確認的絕對一致性（<span class="math">C</span>）。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>斷線時容錯<br><span class="math">(If P: A vs C)</span></strong></td>
+                        <td>系統各自獨立運行（<span class="math">A</span>），但斷線期間的資料落差，將演變成隔日不可收拾的對帳災難。</td>
+                        <td>允許節點在各自網路分區中繼續運行（<span class="math">A</span>），斷線恢復後透過最長鏈機制自動對齊，<span style="color: #22c55e; font-weight: 600;">技術性消除了帳目分歧</span>。</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="slide-footer">秩序權衡</div>
+        </div>
+
+        <div class="slide">
+            <span class="slide-badge">Slide 13</span>
+            <h2>【結】Code is Law：技術性消滅商業對帳</h2>
+            
+            <h3>單一真相來源 (SSOT, Single Source of Truth)</h3>
+            <p>透過 PoW 的算力護城河防範了欺詐與女巫攻擊，並透過最長鏈原則保證了歷史數據的唯一性。Gogoro 與台新銀行終於擁有了一個 100% 互信的底層基礎設施。</p>
+            
+            <h3>智能合約與 Code is Law</h3>
+            <p>將複雜的商業合作邏輯直接寫死在區塊鏈系統中：</p>
+            <div class="math-display" style="font-family: inherit; font-style: normal; font-size: 11pt; text-align: left; padding-left: 20px;">
+                用戶換電成功 &nbsp;➔&nbsp; 密碼學自動驗證 &nbsp;➔&nbsp; 自動觸發台新聯名卡扣點 &nbsp;➔&nbsp; 即時清算完成
+            </div>
+            <p>企業之間不需要信任對方公司的信用、不需要等待對方財務的 CSV 報表，只需要信任<strong>數學、密碼學與程式碼</strong>。</p>
+            
+            <div class="highlight-box" style="border-left-color: #1e3a8a; background-color: #f1f5f9;">
+                <div class="box-title" style="color: #0f172a; font-size: 12pt;">簡報總結</div>
+                <p style="color: #1e293b; font-weight: 500;">我們跨越了單體到分布式的鴻溝，揚棄了成本高昂的傳統對帳，直接引入比特幣的硬核共識。這把由算力與密碼學鍛造的信任之鑰，徹底消滅了組織間的對帳成本，重塑了未來的去中心化商業合作生態。</p>
+            </div>
+            <div class="slide-footer">Code is Law</div>
+        </div>
+
+    </div>
+</div>
+
+<div class="progress-container">
+    <div class="progress-bar" id="slide-progress"></div>
+</div>
+
+<script>
+    let currentSlideIdx = 0;
+    const slides = document.querySelectorAll('.slide');
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+    const progressBar = document.getElementById('slide-progress');
+
+    function updatePresentation() {
+        // 切換顯示狀態
+        slides.forEach((slide, idx) => {
+            if (idx === currentSlideIdx) {
+                slide.classList.add('active');
+            } else {
+                slide.classList.remove('active');
+            }
+        });
+
+        // 邊界按鈕狀態優化（防呆與防溢出）
+        if (currentSlideIdx === 0) {
+            prevBtn.style.opacity = "0.1";
+            prevBtn.style.pointerEvents = "none";
+        } else {
+            prevBtn.style.opacity = "1";
+            prevBtn.style.pointerEvents = "auto";
+        }
+
+        if (currentSlideIdx === slides.length - 1) {
+            nextBtn.style.opacity = "0.1";
+            nextBtn.style.pointerEvents = "none";
+        } else {
+            nextBtn.style.opacity = "1";
+            nextBtn.style.pointerEvents = "auto";
+        }
+
+        // 更新進度條
+        const progressPercentage = ((currentSlideIdx + 1) / slides.length) * 100;
+        progressBar.style.width = `${progressPercentage}%`;
+    }
+
+    function changeSlide(direction) {
+        const targetIdx = currentSlideIdx + direction;
+        if (targetIdx >= 0 && targetIdx < slides.length) {
+            currentSlideIdx = targetIdx;
+            updatePresentation();
+        }
+    }
+
+    // 鍵盤監聽事件：支援鍵盤左右方向鍵換頁
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'ArrowLeft') {
+            changeSlide(-1);
+        } else if (event.key === 'ArrowRight') {
+            changeSlide(1);
+        }
+    });
+
+    // 初始化簡報狀態
+    updatePresentation();
+</script>
+
+</body>
+</html>
