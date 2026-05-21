@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>可信任的分布式系統 —— 簡報網頁版</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background-color: #0c0d10;
+            color: #f5f5f5;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans TC", sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        /* Slide Deck Window */
+        .deck-container {
+            width: 100vw;
+            height: 100vh;
+            max-width: 1280px;
+            max-height: 720px;
+            aspect-ratio: 16 / 9;
+            background-color: #0f1115;
+            position: relative;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            border: 1px solid rgba(222, 255, 154, 0.1);
+            overflow: hidden;
+            border-radius: 12px;
+        }
+
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            padding: 60px 80px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.4s ease, visibility 0.4s;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            z-index: 1;
+        }
+
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+            z-index: 2;
+        }
+
+        /* Background Glow Decor */
+        .slide::after {
+            content: '';
+            position: absolute;
+            top: -150px;
+            right: -150px;
+            width: 450px;
+            height: 450px;
+            background: radial-gradient(circle, rgba(222, 255, 154, 0.05) 0%, transparent 70%);
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* Typography */
+        .slide-header {
+            font-size: 44px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 40px;
+            border-left: 6px solid #deff9a;
+            padding-left: 20px;
+            line-height: 1.2;
+        }
+        .slide-header span {
+            color: #deff9a;
+        }
+
+        h3 {
+            font-size: 26px;
+            color: #deff9a;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+
+        p, li {
+            font-size: 19px;
+            line-height: 1.6;
+            color: #cbd5e1;
+            margin-bottom: 12px;
+        }
+
+        ul {
+            margin-left: 24px;
+            margin-bottom: 20px;
+        }
+
+        strong {
+            color: #ffffff;
+            font-weight: 700;
+        }
+
+        .highlight-text {
+            color: #deff9a;
+            font-weight: 600;
+        }
+
+        /* Layout Helpers */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            align-items: start;
+        }
+
+        .card {
+            background-color: #161920;
+            border-radius: 12px;
+            padding: 28px;
+            border: 1px solid rgba(222, 255, 154, 0.1);
+            height: 100%;
+        }
+
+        .alert-card {
+            background-color: rgba(239, 68, 68, 0.05);
+            border-left: 4px solid #ef4444;
+            padding: 20px;
+            border-radius: 0 8px 8px 0;
+            margin-top: 15px;
+        }
+
+        .alert-card p {
+            color: #fca5a5;
+        }
+
+        /* Table Design */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: #12141c;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th {
+            text-align: left;
+            background: #1e2230;
+            color: #deff9a;
+            padding: 16px;
+            font-size: 18px;
+            border-bottom: 2px solid #deff9a;
+        }
+        td {
+            padding: 16px;
+            border-bottom: 1px solid #232838;
+            font-size: 17px;
+            color: #cbd5e1;
+        }
+
+        /* Formula Box */
+        .formula-box {
+            background: #090a0f;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px dashed rgba(222, 255, 154, 0.3);
+            font-family: "Courier New", monospace;
+            font-size: 24px;
+            color: #deff9a;
+            text-align: center;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+
+        /* Navigation Controls */
+        .controls {
+            position: absolute;
+            bottom: 30px;
+            right: 40px;
+            display: flex;
+            gap: 15px;
+            z-index: 10;
+        }
+
+        .btn {
+            background: #161920;
+            color: #f5f5f5;
+            border: 1px solid rgba(222, 255, 154, 0.2);
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .btn:hover {
+            background: #deff9a;
+            color: #0c0d10;
+            border-color: #deff9a;
+        }
+
+        .progress-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 4px;
+            background: #deff9a;
+            width: 0%;
+            transition: width 0.3s ease;
+            z-index: 10;
+        }
+
+        .slide-counter {
+            position: absolute;
+            bottom: 35px;
+            left: 40px;
+            font-size: 14px;
+            color: rgba(255,255,255,0.4);
+            z-index: 10;
+        }
+
+        /* Title Slide Custom Style */
+        .title-slide {
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        /* Quote Slide Custom Style */
+        .quote-slide {
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="deck-container">
+        <!-- Slide 1: Title -->
+        <div class="slide active title-slide" id="slide-1">
+            <h1 style="font-size: 64px; color: #deff9a; margin-bottom: 20px; line-height: 1.1;">可信任的分布式系統</h1>
+            <h2 style="font-size: 28px; color: #ffffff; font-weight: 400; letter-spacing: 2px; margin-bottom: 40px;">從架構衝突到信任機制的建立</h2>
+            <div style="width: 120px; height: 2px; background: #deff9a; margin-bottom: 40px;"></div>
+            <p style="font-size: 20px; color: #94a3b8; max-width: 800px;">利用時代進步的可用性紅利，技術性消滅商業對帳成本</p>
+        </div>
+
+        <!-- Slide 2: Definition -->
+        <div class="slide" id="slide-2">
+            <h2 class="slide-header">什麼是分布式系統？與其<span>核心哲學</span></h2>
+            <div class="grid-2">
+                <div>
+                    <h3>1. 架構對比與演進</h3>
+                    <ul>
+                        <li><strong>單體系統 (Monolithic)</strong>：本地記憶體呼叫、速度極快，但存在「單點故障 (SPOF)」風險，一台主機崩潰全盤皆輸。</li>
+                        <li><strong>分布式系統 (Distributed)</strong>：將多台獨立電腦透過網路連接，風險分散，具備高擴展性與高容錯性。</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h3>2. 為失敗而設計 (Design for Failure)</h3>
+                    <p>在分布式環境中，硬體損壞與網路斷線是<strong>必然發生的常態</strong>，而非意外。系統透過組件隔離、服務降級與自動復原確保服務永不中斷。</p>
+                    <p><span class="highlight-text">實務驗證 (Chaos Monkey)：</span> Netflix 開創的混沌工程工具，在生產環境隨機殺死節點，強迫工程師寫出高容錯韌性架構。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: Trust Gap -->
+        <div class="slide" id="slide-3">
+            <h2 class="slide-header">商業現實中的<span>信任鴻溝</span>：以 Gogoro 與台新銀行為例</h2>
+            <div class="grid-2">
+                <div>
+                    <h3>背景設定</h3>
+                    <p>Gogoro（能源與點數系統）與台新銀行（金融與聯名卡系統）各自都是強大的分布式系統。</p>
+                    <h3>靈魂拷問：這兩個系統互相信任嗎？</h3>
+                    <p><strong>答案是不信任。</strong>在商業與技術層面，兩者屬於不同的利益與管理主體 (Administrative Domains)。</p>
+                </div>
+                <div class="card">
+                    <h3>技術現狀：零信任 (Zero Trust)</h3>
+                    <p>跨組織的系統設計，本質上都是建立在不信任的前提下。</p>
+                    <ul>
+                        <li>資料可能被組織內部惡意篡改。</li>
+                        <li>網路傳輸可能漏單、封包丟失。</li>
+                        <li>任何一方的系統 Bug 都可能導致另一方帳目出錯。</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: 2PC Dilemma -->
+        <div class="slide" id="slide-4">
+            <h2 class="slide-header">情境模擬：傳統跨組織交易的死局 —— <span>兩階段提交</span></h2>
+            <div class="grid-2">
+                <div class="card">
+                    <h3>傳統分布式解法：兩階段提交 (2PC)</h3>
+                    <p>用戶在換電站換電，扣除台新 Gogoro 聯名卡點數：</p>
+                    <ul>
+                        <li><strong>第一階段 (Prepare)</strong>：協調者問兩邊：「準備好扣款/給點數了嗎？」兩邊鎖定資源並回應「OK」。</li>
+                        <li><strong>第二階段 (Commit)</strong>：協調者下達終極命令：「執行！」</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3>2PC 的致命缺陷：同步阻塞</h3>
+                    <p>如果台新銀行伺服器在第二階段突然斷線，Gogoro 的系統會被<strong>「鎖死」</strong>在那裡等待，不敢亂動資料。</p>
+                    <p>這種技術防線非常脆弱，會導致單點故障擴散，這才導致跨組織間難以達成即時連線信任。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 5: Reconciliation Pain -->
+        <div class="slide" id="slide-5">
+            <h2 class="slide-header">傳統的妥協方案：<span>對帳 (Reconciliation)</span> 與其痛點</h2>
+            <div class="grid-2">
+                <div>
+                    <h3>普通分布式系統的「內部信任」極限</h3>
+                    <p>台新銀行的內部系統可以保證「台北總行與高雄分行」資料同步，這叫<strong>單一利益主體內的技術信任</strong>。</p>
+                    <p>但跨出邊界，台新管不到 Gogoro 的員工會不會改資料庫。普通分布式防線「對內不對外」，跨出邊界立刻失效。</p>
+                </div>
+                <div class="card">
+                    <h3>對帳系統的巨大痛點 (T+1 妥協)</h3>
+                    <ul>
+                        <li><strong>時效性差</strong>：每天營業結束後各自導出 CSV 檔比對，發生錯誤隔天甚至數天後才發現。</li>
+                        <li><strong>成本高昂</strong>：耗費大量算力與財會人力在「抓漏」與「平帳 (Dispute Resolution)」。</li>
+                    </ul>
+                    <div class="alert-card">
+                        <p><strong>核心本質</strong>：對帳，是商業上因為技術無法跨越組織邊界、導致「外部信任缺失」而必須付出的昂貴代價。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 6: Essence -->
+        <div class="slide" id="slide-6">
+            <h2 class="slide-header">關鍵轉折：如何打造跨組織信任？先拆解<span>分布式系統的本質</span></h2>
+            <p style="margin-bottom: 30px; font-size: 21px; color: #ffffff;">既然既有系統無法跨界信任，我們必須回歸底層，看清分布式系統的<strong>三大物理本質</strong>：</p>
+            <div class="grid-2">
+                <div class="card">
+                    <h3>1. 空間的分離 (Spatial Separation)</h3>
+                    <p>節點分佈在不同地理位置與利益實體，訊息傳遞必定存在實體限制與網路延遲。</p>
+                    <h3>2. 時間的非同步 (Asynchrony)</h3>
+                    <p>缺乏絕對精準的「全域時鐘」，技術上不存在完美的「同時發生」。</p>
+                </div>
+                <div class="card">
+                    <h3>3. 環境的不確定性 (Unreliable Network)</h3>
+                    <p>網路波動、封包遺失與連線中斷在分布式環境中是常態而非異常。</p>
+                    <div style="margin-top: 20px; border-top: 1px solid rgba(222,255,154,0.2); padding-top: 15px;">
+                        <p><strong>思維轉換</strong>：打造信任的第一步，是必須在不穩定的環境中，<span class="highlight-text">被迫在「數據正確性」與「系統速度」之間做出權衡選擇</span>。這直接引出了鐵律...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 7: CAP Theorem -->
+        <div class="slide" id="slide-7">
+            <h2 class="slide-header">分布式系統的鐵律：<span>CAP 定理</span></h2>
+            <p style="margin-bottom: 30px; font-size: 20px;">在分布式環境下，以下三個特性只能 <strong>三擇二</strong> 滿足：</p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px;">
+                <div class="card">
+                    <h3>C (Consistency) 一致性</h3>
+                    <p>所有節點在同一時間看到的資料都是最新且相同的。</p>
+                </div>
+                <div class="card">
+                    <h3>A (Availability) 可用性</h3>
+                    <p>每一次請求都能收到非錯誤的回應，但不保證資料最新。</p>
+                </div>
+                <div class="card">
+                    <h3>P (Partition Tolerance) 分區容錯</h3>
+                    <p>當網路發生斷線或延遲（分區）時，系統仍能繼續運作。</p>
+                </div>
+            </div>
+            <div class="alert-card" style="margin-top: 30px; background-color: rgba(222, 255, 154, 0.02); border-left-color: #deff9a;">
+                <p style="color: #cbd5e1;"><strong>殘酷現實</strong>：在現實網路中，<span class="highlight-text">P（分區）必定會發生</span>，因此系統設計實際上只能在 <strong>CP</strong> 與 <strong>AP</strong> 之間做抉擇（CA 僅存在於無網路故障的理想環境）。</p>
+            </div>
+        </div>
+
+        <!-- Slide 8: CP vs AP -->
+        <div class="slide" id="slide-8">
+            <h2 class="slide-header">三種組合的<span>深度剖析</span></h2>
+            <p style="margin-bottom: 10px;">由於 P 無法避免，設計師必須在商業與技術底線間選邊站：</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>架構模式</th>
+                        <th>犧牲項目</th>
+                        <th>核心優先級</th>
+                        <th>典型應用場景</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>CA 架構</strong></td>
+                        <td>放棄分區容錯 (P)</td>
+                        <td>單機完美環境</td>
+                        <td>傳統單機關聯式資料庫 (RDBMS)，斷網即崩潰。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>CP 架構</strong></td>
+                        <td>放棄可用性 (A)</td>
+                        <td>資料精準高於一切</td>
+                        <td>銀行轉帳、ATM、Gogoro 扣款（寧可拒絕服務也不允許出錯）。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>AP 架構</strong></td>
+                        <td>放棄一致性 (C)</td>
+                        <td>系統流暢高於一切</td>
+                        <td>社群媒體點讚數、電商購物車（容忍暫時不準，追求絕對不卡頓）。</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Slide 9: PACELC -->
+        <div class="slide" id="slide-9">
+            <h2 class="slide-header">超越 CAP 的進階鐵律：<span>PACELC 定理</span></h2>
+            <div class="grid-2">
+                <div>
+                    <h3>傳統 CAP 的盲點</h3>
+                    <p>CAP 只告訴我們「當網路斷線 (Partition)」時該怎麼辦。但日常 99% 的時間網路都是正常的（Peace Time），此時系統要怎麼權衡？這就是 PACELC。</p>
+                    <div class="formula-box" style="font-size: 20px; text-align: left;">
+                        若有 P (Partition) ➔ 選 A 或 C<br>
+                        Else (正常情況下) ➔ 選 L (Latency) 或 C
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>聽眾秒懂類比：台北與紐約精品店</h3>
+                    <ul>
+                        <li><strong>斷線時 (If P)</strong>：是要暫停銷售以確保庫存精準 (C)，還是冒著超賣風險繼續賣給客戶 (A)？</li>
+                        <li><strong>正常時 (Else)</strong>：是要讓客戶在櫃檯等 10 秒去跨海確認全球資料同步 (C)，還是 1 秒內極速結帳，事後才非同步更新紐約 (L)？</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 10: Natural Elevation of A -->
+        <div class="slide" id="slide-10">
+            <h2 class="slide-header">核心主張：時代演變與<span>可用性 (A) 的自然提升</span></h2>
+            <div class="grid-2">
+                <div>
+                    <h3>1. 時代的技術紅利</h3>
+                    <p>莫爾定律的算力爆發、5G 與高速光纖基建，讓節點之間的通訊與資料同步速度快到以「微秒」計算。</p>
+                    <h3>2. 速度幻覺與可用性融合</h3>
+                    <p>在過去，選擇 <strong>CP</strong> 意味著系統會出現漫長且痛苦的等待，嚴重傷害用戶體驗。但今天，即使系統為了強一致性而短暫鎖定資源，這個時間已被壓縮到微秒級，<span class="highlight-text">人類使用者完全察覺不到</span>。</p>
+                </div>
+                <div class="card" style="display: flex; flex-direction: column; justify-content: center;">
+                    <h3>核心結論：用「過剩的可用性」換取信任</h3>
+                    <p style="font-size: 21px; color: #ffffff; line-height: 1.5;">時代進步賜予了我們<strong>「過剩的可用性與速度 (Surplus Availability)」</strong>。我們完全可以用這部分體感無感的微小犧牲，去換取 100% 的 <strong>CP（強一致性）</strong>。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 11: Shared CP System -->
+        <div class="slide" id="slide-11">
+            <h2 class="slide-header">大驚喜揭曉：共用同一個<span>「CP 導向」的分布式系統</span></h2>
+            <div class="grid-2">
+                <div class="card">
+                    <h3>1. 英雄式的解答</h3>
+                    <p>既然時代送了我們過剩的可用性，我們終於可以毫無懸念地擁抱 CP 架構！</p>
+                    <p>Gogoro 與台新銀行打破組織邊界，<span class="highlight-text">共同維護同一個不可篡改的分布式帳本（如聯盟鏈）</span>，建立單一真相來源 (SSOT)。</p>
+                </div>
+                <div>
+                    <h3>2. 為什麼必須是 CP 系統？</h3>
+                    <ul>
+                        <li><strong>如果選 AP</strong>：網路微幅波動時允許兩邊各自記帳，會導致資料分叉 (Split-Brain)，事後依然需要昂貴的對帳與人工平帳。</li>
+                        <li><strong>唯有選擇 CP</strong>：系統強制要求數據必須絕對同步。這種「事前共識」才能徹底消滅事後對帳，將商業對帳成本降為零。</li>
+                    </ul>
+                    <p><strong>關鍵治理：雙方共同維護、共同運維節點</strong>。若由單方維護，就退回了傳統中心化強權，另一方絕不敢信任。也因共同維護，才引出核心安全考驗...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 12: Code is Law -->
+        <div class="slide" id="slide-12">
+            <h2 class="slide-header">CP 的極致：換取「信任的鑰匙」與 <span>Code is Law</span></h2>
+            <div class="grid-2">
+                <div>
+                    <h3>1. 消滅中間人與傳統合約</h3>
+                    <p>當我們利用技術紅利放心地把 CP 做到極致，資料不可能出現衝突或雙花 (Double Spending)。</p>
+                    <p>雙方不再需要信任對方的人格或企業商譽，系統本身就成了「數位第三方公證人」，我們只需要信任<strong>數學與程式碼</strong>。</p>
+                </div>
+                <div class="card">
+                    <h3>2. 核心昇華：程式碼即法律 (Code is Law)</h3>
+                    <p>將雙方的商業邏輯直接寫死在系統的<strong>智慧合約 (Smart Contracts)</strong> 中：</p>
+                    <p style="font-style: italic; color: #deff9a; text-align: center; margin: 15px 0;">「用戶換電成功 ➔ 系統自動觸發銀行扣點 ➔ 清算帳務」</p>
+                    <p>程式碼怎麼寫，商業規則就怎麼強制執行。沒有人為介入空間，無人可以賴皮，也沒有模糊地帶。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 13: Byzantine Fault -->
+        <div class="slide" id="slide-13">
+            <h2 class="slide-header">共同維護的最大威脅：<span>拜占庭攻擊 (Byzantine Fault)</span></h2>
+            <div class="grid-2">
+                <div>
+                    <h3>節點不只會壞，還會說謊</h3>
+                    <p>傳統分布式系統只防範「節點故障 (Crash-Stop)」；但共同維護的跨組織系統，必須面對<strong>「節點說謊 (Malicious Lie / Arbitrary Fault)」</strong>。</p>
+                    <p>在聯盟系統中，可能存在叛徒節點故意發送假資料、串謀篡改帳本、或對不同節點發送矛盾的指令。</p>
+                </div>
+                <div class="card">
+                    <h3>商業危害</h3>
+                    <p>如果無法在技術上有效防範拜占庭攻擊，分布式系統好不容易建立起來的「技術信任」與安全防線就會瞬間瓦解。</p>
+                    <p style="margin-top: 15px; color: #ef4444;">我們需要嚴密的數學投票共識演算法來阻擊說謊者。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 14: Math of BFT -->
+        <div class="slide" id="slide-14">
+            <h2 class="slide-header">信任的數學邊界：<span>拜占庭容錯 (BFT)</span> 的硬道理</h2>
+            <div class="formula-box">
+                N &ge; 3f + 1
+            </div>
+            <div class="grid-2" style="margin-top: 20px;">
+                <div class="card">
+                    <h3>核心邏輯推導剖析</h3>
+                    <p>假設有 <span class="highlight-text">f</span> 個壞人會故意說謊。為了不被卡死，系統必須在收到 <span class="highlight-text">N - f</span> 個回應時做決定。</p>
+                    <p>但這回應中，最壞情況包含了那 f 個壞人的謊言，所以真正好人的回應只有 <span class="highlight-text">(N - f) - f = N - 2f</span> 個。</p>
+                    <p>為了讓好人的聲音大於壞人：<br><strong>N - 2f > f  ➔  N > 3f</strong></p>
+                </div>
+                <div>
+                    <h3>實務安全意義</h3>
+                    <p>因此，最少需要 <strong>3f + 1</strong> 個節點。</p>
+                    <p>系統只要維持好人佔多數，就能容忍不超過 1/3 的惡意節點攻擊（無論是惡意造假或節點被駭），系統依然能維持 100% 正確運行。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 15: Modern Defenses & Conclusion -->
+        <div class="slide" id="slide-15">
+            <h2 class="slide-header">現代防禦陣線與<span>總結</span></h2>
+            <div class="grid-2">
+                <div class="card">
+                    <h3>1. 經濟學賽局阻擊 (PoW / PoS)</h3>
+                    <p>讓說謊的成本（算力、電力、沒收保證金 Slashing 機制）遠大於作惡的收益，從人性利益與商業成本上杜絕作惡。</p>
+                    <h3>2. 密碼學防護陣線</h3>
+                    <p>全程使用數位簽章與雜湊鏈 (Hash Chain)，訊息一旦發出即具備不可否認性，任何微小變動皆會被即時偵測。</p>
+                </div>
+                <div>
+                    <h3>簡報總結</h3>
+                    <p>時代進步帶來的可用性紅利，讓我們能以極低代價擁抱極致的 <strong>CP 架構</strong>。</p>
+                    <p>透過 <strong>CP 特性</strong> 與 <strong>拜占庭容錯</strong> 的結合，Gogoro 與台新銀行得以建立「可信任的分布式系統」，在 <strong>Code is Law</strong> 的框架下，將跨組織的對帳成本降為零，重塑未來商業生態。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 16: Ending Quote -->
+        <div class="slide quote-slide" id="slide-16">
+            <h1 style="font-size: 72px; color: #deff9a; font-family: 'Urbanist', sans-serif; font-weight: 700; margin-bottom: 20px;">Don't trust, verify.</h1>
+            <p style="font-size: 24px; color: #ffffff; letter-spacing: 1px; margin-bottom: 60px;">不要盲目信任，請親自驗證。</p>
+            <div style="font-size: 16px; color: rgba(255,255,255,0.3);">可信任的分布式系統 —— 報告結束</div>
+        </div>
+
+        <!-- Progress and Controls -->
+        <div class="slide-counter"><span id="current-slide-num">1</span> / 16</div>
+        <div class="progress-bar" id="progress"></div>
+        <div class="controls">
+            <button class="btn" id="prev-btn">◀ 上一頁</button>
+            <button class="btn" id="next-btn">下一頁 ▶</button>
+        </div>
+    </div>
+
+    <script>
+        const slides = document.querySelectorAll('.slide');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const progressBar = document.getElementById('progress');
+        const counter = document.getElementById('current-slide-num');
+        
+        let currentSlide = 0;
+
+        function updateDeck() {
+            slides.forEach((slide, index) => {
+                if (index === currentSlide) {
+                    slide.classList.add('active');
+                } else {
+                    slide.classList.remove('active');
+                }
+            });
+            
+            // Progress Bar & Counter
+            const progressPercent = ((currentSlide + 1) / slides.length) * 100;
+            progressBar.style.width = `${progressPercent}%`;
+            counter.innerText = currentSlide + 1;
+        }
+
+        nextBtn.addEventListener('click', () => {
+            if (currentSlide < slides.length - 1) {
+                currentSlide++;
+                updateDeck();
+            }
+        });
+
+        prevBtn.addEventListener('click', () => {
+            if (currentSlide > 0) {
+                currentSlide--;
+                updateDeck();
+            }
+        });
+
+        // Keyboard Navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === 'Space') {
+                if (currentSlide < slides.length - 1) {
+                    currentSlide++;
+                    updateDeck();
+                }
+            } else if (e.key === 'ArrowLeft') {
+                if (currentSlide > 0) {
+                    currentSlide--;
+                    updateDeck();
+                }
+            }
+        });
+
+        // Initialize
+        updateDeck();
+    </script>
+</body>
+</html>
