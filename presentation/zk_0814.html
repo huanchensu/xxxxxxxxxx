@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proving Everything with Probability — From coin flips to Zero-Knowledge Proofs</title>
+<meta name="description" content="A 45-minute tech talk: from randomness and probabilistic proofs to zero-knowledge credentials, and why a centralized 1-bit API isn't the same thing.">
+<style>
+:root{
+  --bg:#FFFFFF; --surface:#F4F5F7; --surface2:#EDEEF2; --hair:#E2E4EA;
+  --ink:#1B1D23; --ink2:#3E424D; --muted:#868B98;
+  --accent:#C8322D; --ok:#2E7D57; --ghost:#E8EAEE;
+  --serif:Cambria,Georgia,"Times New Roman",serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Courier New",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#DFE1E7}
+body{font-family:var(--sans);color:var(--ink)}
+
+/* ---------- stage / scaling ---------- */
+#stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+#deck{width:1280px;height:720px;position:relative;transform-origin:center center;
+  background:var(--bg);box-shadow:0 10px 40px rgba(0,0,0,.13)}
+.slide{position:absolute;inset:0;padding:44px 56px 62px;display:none;flex-direction:column}
+.slide.active{display:flex;animation:fade .28s ease}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ---------- shared bits ---------- */
+.pip{width:8px;height:8px;border-radius:50%;background:var(--accent);flex:none;display:inline-block}
+.kicker{display:flex;align-items:center;gap:9px;font-size:11.5px;letter-spacing:.24em;
+  font-weight:700;color:var(--muted);text-transform:uppercase}
+.title{font-family:var(--serif);font-size:34px;font-weight:700;line-height:1.18;
+  letter-spacing:-.01em;margin-top:14px}
+.lead{font-size:15px;color:var(--ink2);line-height:1.6;margin-top:12px;max-width:1050px}
+.body{flex:1;display:flex;margin-top:24px;min-height:0}
+.takeaway{display:flex;gap:12px;align-items:flex-start;margin-top:18px}
+.takeaway p{font-size:16px;font-weight:700;line-height:1.45}
+.takeaway .pip{margin-top:6px}
+.hl{color:var(--accent)}
+.card{background:var(--surface);border-radius:10px;padding:22px 24px}
+.card.alt{background:var(--surface2)}
+.card h3{font-family:var(--serif);font-size:21px;font-weight:700}
+.card h4{font-size:16.5px;font-weight:700}
+.card p{font-size:13.5px;color:var(--ink2);line-height:1.62;margin-top:8px}
+.card p.muted{color:var(--muted)}
+hr.hair{border:none;border-top:1px solid var(--hair);margin:12px 0}
+ul.dots{list-style:none}
+ul.dots li{position:relative;padding-left:16px;font-size:13.5px;color:var(--ink2);
+  line-height:1.6;margin-bottom:10px}
+ul.dots li::before{content:"";position:absolute;left:2px;top:8px;width:5px;height:5px;
+  border-radius:50%;background:var(--muted)}
+code,pre,.mono{font-family:var(--mono)}
+.foot{position:absolute;left:56px;bottom:24px;font-size:10.5px;color:var(--muted);
+  display:flex;gap:10px;align-items:center}
+.foot b{color:var(--accent);font-weight:700}
+
+/* ---------- cover ---------- */
+.cover{justify-content:center}
+.cover .eyebrow{display:flex;align-items:center;gap:14px;font-size:12px;font-weight:700;
+  letter-spacing:.28em;color:var(--muted)}
+.cover .die{width:34px;height:34px;flex:none}
+.cover h1{font-family:var(--serif);font-size:60px;font-weight:700;line-height:1.1;
+  letter-spacing:-.02em;margin-top:40px}
+.cover .sub{font-size:20px;color:var(--ink2);margin-top:22px}
+.cover .rule{width:64px;height:1px;background:var(--hair);margin:34px 0 14px}
+.cover .date{font-size:13px;color:var(--muted)}
+.cover .deco{position:absolute;right:56px;bottom:44px;font-family:var(--serif);
+  font-size:120px;font-weight:700;color:var(--ghost);line-height:1}
+
+/* ---------- divider ---------- */
+.divider{justify-content:center}
+.divider .num{font-family:var(--serif);font-size:150px;font-weight:700;color:var(--ghost);
+  line-height:.9}
+.divider .rule{width:210px;height:1px;background:var(--hair);margin:26px 0 22px}
+.divider h2{font-family:var(--serif);font-size:44px;font-weight:700;letter-spacing:-.01em}
+.divider p{font-size:16px;color:var(--ink2);margin-top:18px;max-width:820px;line-height:1.6}
+.divider .ico{position:absolute;right:60px;top:60px;width:44px;height:44px;color:var(--accent)}
+
+/* ---------- generic grids ---------- */
+.split2{display:grid;grid-template-columns:1fr 1fr;gap:26px}
+.split2.vs{grid-template-columns:1fr 46px 1fr;gap:0;align-items:stretch}
+.split2.vs .mid{display:flex;align-items:center;justify-content:center;
+  font-size:15px;font-weight:700;color:var(--muted)}
+.cards3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.cards4{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:18px}
+.stack{display:flex;flex-direction:column;gap:0}
+
+/* ---------- id card (S02) ---------- */
+.idrow{display:grid;grid-template-columns:150px 1fr;font-size:14px;padding:9px 0}
+.idrow .k{color:var(--muted);font-size:12.5px}
+.idrow .v{color:var(--ink)}
+.idrow .v.flag{color:var(--accent);font-weight:700}
+.bigyes{font-family:var(--serif);font-size:86px;font-weight:700;color:var(--accent);
+  text-align:center;line-height:1;margin:18px 0}
+
+/* ---------- quote (S05) ---------- */
+.quote{font-family:var(--serif);font-size:38px;font-weight:700;line-height:1.22;margin-top:20px}
+.attr{font-size:13px;font-weight:700;color:var(--ink2);margin-top:20px}
+.qrow{padding:14px 0;border-bottom:1px solid var(--hair)}
+.qrow:last-child{border-bottom:none}
+.qrow h4{font-size:16.5px;font-weight:700}
+.qrow p{font-size:13.5px;color:var(--ink2);line-height:1.6;margin-top:6px}
+
+/* ---------- code ---------- */
+pre.code{background:var(--surface);border-radius:10px;padding:20px 22px;font-size:14px;
+  line-height:1.85;color:var(--ink);white-space:pre;overflow:hidden}
+pre.code .c{color:var(--muted)}
+pre.code .a{color:var(--accent)}
+pre.big{font-size:19px;line-height:2}
+
+/* ---------- chart (S09) ---------- */
+.statcard{display:flex;flex-direction:column;justify-content:center;text-align:center}
+.statcard .big{font-family:var(--serif);font-size:74px;font-weight:700;color:var(--accent);line-height:1}
+.statcard .eq{font-size:17px;font-weight:700;margin-top:16px}
+.statcard .note{font-size:13px;color:var(--ink2);line-height:1.6;margin-top:14px}
+
+/* ---------- steps (S10) ---------- */
+.steps4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.steps4 .n{font-family:var(--serif);font-size:28px;font-weight:700;color:var(--accent);line-height:1}
+.steps4 h4{font-size:15px;font-weight:700;margin-top:14px}
+.steps4 p{font-size:12.5px;color:var(--muted);line-height:1.55;margin-top:10px}
+
+/* ---------- cave (S11) ---------- */
+.caverow{display:grid;grid-template-columns:130px 1fr;gap:18px;padding:11px 0;
+  border-bottom:1px solid var(--hair);align-items:start}
+.caverow:last-child{border-bottom:none}
+.caverow .lbl{font-size:14px;font-weight:700}
+.caverow .lbl.hot{color:var(--accent)}
+.caverow p{font-size:13px;color:var(--ink2);line-height:1.55}
+
+/* ---------- matrix (S20) ---------- */
+.verdict{font-size:15px;font-weight:700;margin-top:12px}
+.verdict .ok{color:var(--ok)}
+.verdict .no{color:var(--accent)}
+
+/* ---------- tables ---------- */
+table.grid{width:100%;border-collapse:collapse;font-size:13px}
+table.grid th,table.grid td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--hair);
+  vertical-align:top;line-height:1.45}
+table.grid th{font-size:12px;color:var(--muted);font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase}
+table.grid td:first-child{color:var(--ink);font-weight:700;width:23%}
+table.grid .y{color:var(--ok);font-weight:700}
+table.grid .n{color:var(--accent);font-weight:700}
+table.grid .p{color:var(--muted)}
+table.grid.tight th,table.grid.tight td{padding:7px 12px;font-size:12.5px}
+.note-sm{font-size:11.5px;color:var(--muted);margin-top:12px;line-height:1.6}
+
+/* ---------- know/dont (S23) ---------- */
+.knows{display:grid;grid-template-columns:1fr 1fr;gap:0;font-size:13px}
+.knows .col{padding:0 16px}
+.knows .col:first-child{border-right:1px solid var(--hair)}
+.knows h4{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+  margin-bottom:12px}
+.knows li{list-style:none;line-height:1.5;margin-bottom:11px;color:var(--ink2);
+  padding-left:20px;position:relative}
+.knows .y li::before{content:"✓";position:absolute;left:0;color:var(--ok);font-weight:700}
+.knows .n li::before{content:"✗";position:absolute;left:0;color:var(--accent);font-weight:700}
+
+/* ---------- closing ---------- */
+.closing h2{font-family:var(--serif);font-size:44px;font-weight:700;line-height:1.15}
+.closing .sub{font-family:var(--serif);font-size:26px;font-weight:700;color:var(--accent);margin-top:8px}
+.closing .q{font-family:var(--serif);font-size:19px;margin-top:6px;line-height:1.5}
+.closing .qlab{font-size:11px;letter-spacing:.22em;font-weight:700;color:var(--muted);
+  text-transform:uppercase;display:flex;gap:9px;align-items:center;margin-bottom:12px}
+.qa h1{font-family:var(--serif);font-size:80px;font-weight:700}
+
+/* ---------- chrome: progress, counter, panels ---------- */
+#bar{position:fixed;left:0;top:0;height:3px;background:var(--accent);width:0;z-index:40;
+  transition:width .25s ease}
+#hud{position:fixed;right:16px;bottom:14px;z-index:40;display:flex;gap:14px;align-items:center;
+  font-size:12px;color:#5C6270;font-family:var(--sans)}
+#hud button{font:inherit;background:rgba(255,255,255,.85);border:1px solid #C9CDD6;color:#5C6270;
+  border-radius:7px;padding:5px 11px;cursor:pointer}
+#hud button:hover{border-color:var(--accent);color:var(--accent)}
+#count{font-variant-numeric:tabular-nums}
+
+#notes{position:fixed;left:0;right:0;bottom:0;max-height:44vh;overflow:auto;z-index:50;
+  background:#14161C;color:#DDE1EA;padding:22px 26px;display:none;
+  font-size:14px;line-height:1.85;white-space:pre-wrap;
+  box-shadow:0 -8px 30px rgba(0,0,0,.3)}
+#notes.on{display:block}
+#notes h5{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#7E869A;margin-bottom:10px}
+
+#toc{position:fixed;inset:0;z-index:60;background:rgba(255,255,255,.97);display:none;
+  padding:44px;overflow:auto}
+#toc.on{display:block}
+#toc h5{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:20px}
+#toc ol{list-style:none;columns:2;column-gap:44px;max-width:1100px;margin:0 auto}
+#toc li{break-inside:avoid;padding:7px 10px;border-radius:6px;cursor:pointer;font-size:14px;
+  display:flex;gap:12px;align-items:baseline}
+#toc li:hover{background:var(--surface)}
+#toc li .i{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px;width:24px;flex:none}
+#toc li.cur{background:var(--surface2)}
+#toc li.cur .t{color:var(--accent);font-weight:700}
+
+#help{position:fixed;left:16px;bottom:14px;z-index:40;font-size:11.5px;color:#767C8A}
+#help kbd{background:rgba(255,255,255,.9);border:1px solid #C9CDD6;border-radius:4px;
+  padding:1px 5px;font-family:var(--sans);font-size:11px}
+
+@media print{
+  html,body{overflow:visible;background:#fff}
+  #stage{position:static;display:block}
+  #deck{width:100%;height:auto;box-shadow:none;transform:none!important}
+  .slide{position:relative;display:flex!important;width:1280px;height:720px;
+    page-break-after:always;animation:none}
+  #bar,#hud,#notes,#toc,#help{display:none!important}
+  @page{size:1280px 720px;margin:0}
+}
+</style>
+</head>
+<body>
+<div id="bar"></div>
+<div id="stage"><div id="deck"></div></div>
+
+<div id="help">
+  <kbd>←</kbd> <kbd>→</kbd> navigate · <kbd>N</kbd> notes · <kbd>O</kbd> outline · <kbd>F</kbd> fullscreen
+</div>
+<div id="hud">
+  <button id="btnNotes">Notes</button>
+  <button id="btnToc">Outline</button>
+  <span id="count">1 / 29</span>
+</div>
+
+<div id="notes"><h5>Speaker notes · 講者備忘</h5><div id="notesBody"></div></div>
+<div id="toc"><h5>Outline — click to jump</h5><ol id="tocList"></ol></div>
+
+<template id="slides">
+<!-- S01 Cover -->
+<section class="slide cover" data-nofoot data-title="Proving Everything with Probability" data-notes="開場 30 秒:今天不從數學講起,從一個大家都遇過的生活場景講起。
+整場配置:開場 4 / 第一部 8 / 第二部 11 / 第三部 6 / 第四部 20 / 收尾 5。
+時間緊時可抽:S10 色盲兩球、S22 circuit 細節、S24 三方比較表。">
+  <div class="eyebrow">
+    <svg class="die" viewBox="0 0 24 24" fill="none" stroke="#C8322D" stroke-width="1.6">
+      <rect x="3" y="3" width="18" height="18" rx="3"/>
+      <circle cx="8.5" cy="8.5" r="1.3" fill="#C8322D" stroke="none"/>
+      <circle cx="15.5" cy="15.5" r="1.3" fill="#C8322D" stroke="none"/>
+      <circle cx="12" cy="12" r="1.3" fill="#C8322D" stroke="none"/>
+    </svg>
+    TECH SHARING · 45 MIN
+  </div>
+  <h1>Proving Everything<br>with Probability</h1>
+  <div class="sub">From coin flips to Zero-Knowledge Proofs</div>
+  <div class="rule"></div>
+  <div class="date">Friday Tech Share · 2026.08.14</div>
+  <div class="deco">2<sup>&minus;n</sup></div>
+</section>
+
+<!-- S02 Beer hook -->
+<section class="slide" data-notes="互動:先問「有沒有人被要求看證件過?店員知道了你什麼?」
+重點:需要的答案只有一個 bit,但證件交出了生日、身分證字號、地址。
+這頁刻意丟出兩個問題。第一個(內容多小)大家馬上會想到答案;第二個(誰必須在場)是伏筆 — 第四部整個翻轉靠它。先不要解釋第二個問題,只留在那裡。(~3分鐘)">
+  <div class="kicker"><span class="pip"></span>Opening · a daily absurdity</div>
+  <h2 class="title">Why does one beer cost you your whole identity?</h2>
+  <div class="body split2 vs">
+    <div class="card">
+      <h4>National ID Card</h4>
+      <p class="muted" style="margin-top:4px">One glance — the clerk sees it all</p>
+      <hr class="hair">
+      <div class="idrow"><span class="k">Name</span><span class="v">Alex Wang</span></div>
+      <div class="idrow"><span class="k">Date of birth</span><span class="v flag">Mar 14, 1998</span></div>
+      <div class="idrow"><span class="k">ID number</span><span class="v">A123456789</span></div>
+      <div class="idrow"><span class="k">Address</span><span class="v">100 Zhongshan Rd, Taipei</span></div>
+    </div>
+    <div class="mid">vs</div>
+    <div class="card alt" style="display:flex;flex-direction:column;justify-content:center">
+      <p class="muted" style="margin:0">All the clerk actually needs</p>
+      <h3 style="margin-top:6px">Over 18?</h3>
+      <div class="bigyes">YES</div>
+      <hr class="hair">
+      <p style="text-align:center;font-weight:700;color:var(--ink2)">Information content: 1 bit</p>
+    </div>
+  </div>
+  <div class="takeaway"><span class="pip"></span>
+    <p>Two questions, not one: how little can we disclose — <span class="hl">and who has to be present when we do?</span></p>
+  </div>
+</section>
+
+<!-- S03 Agenda -->
+<section class="slide" data-notes="這四段是一條線,不是四個獨立主題 — 機率是什麼 → 電腦裡的機率 → 機率如何拿來證明 → 證明如何拿掉中間人。
+第四項刻意寫成問句,預告第四部是一場辯論,不是應用清單。(~1分鐘)">
+  <div class="kicker"><span class="pip"></span>Agenda</div>
+  <h2 class="title">Today's route: from a die roll to a single bit</h2>
+  <div class="body cards4">
+    <div class="card"><h4>1 &nbsp;What is "true" randomness?</h4>
+      <p>Einstein, Laplace, chaos — does anything actually roll dice?</p></div>
+    <div class="card"><h4>2 &nbsp;How computers fake randomness</h4>
+      <p>PRNG, CSPRNG, and where entropy comes from.</p></div>
+    <div class="card"><h4>3 &nbsp;Proving things with probability</h4>
+      <p>Interactive proofs and zero-knowledge proofs.</p></div>
+    <div class="card alt"><h4>4 &nbsp;Why not just call an API?</h4>
+      <p>The objection every engineer raises — and the real answer.</p></div>
+  </div>
+</section>
+
+<!-- S04 Divider 1 -->
+<section class="slide divider" data-notes="轉場:要談「用機率證明」,得先搞清楚機率是什麼。(30秒)">
+  <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+    <rect x="3" y="3" width="18" height="18" rx="3"/>
+    <circle cx="8.5" cy="8.5" r="1.3" fill="currentColor" stroke="none"/>
+    <circle cx="15.5" cy="15.5" r="1.3" fill="currentColor" stroke="none"/>
+    <circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/>
+  </svg>
+  <div class="num">01</div>
+  <div class="rule"></div>
+  <h2>What Is "True" Randomness?</h2>
+  <p>Before we prove anything with probability, we should ask whether probability is even real.</p>
+</section>
+
+<!-- S05 Einstein -->
+<section class="slide" data-notes="定調:愛因斯坦當引子,但主張要收在正確範圍 — 講「電腦碰得到的一切都是決定性的」,不要講「宇宙沒有真隨機」。
+
+【被問到量子怎麼答】愛因斯坦這場爭論科學上是輸的:Bell 不等式的實驗檢驗(Aspect / Clauser / Zeilinger,2022 諾貝爾物理獎)排除了局域隱變數,主流共識認為量子隨機是本質的,不是隱藏參數。正確說法是「是否存在真隨機仍有爭議,但那跟我們無關」— 就算真隨機存在,你的程式拿到的仍然是決定性演算法的輸出。這個回應反而強化今天的主題,不用迴避。
+
+骰子屬於中間那段:混沌不是隨機,只是我們算不動。(~3分鐘)">
+  <div class="kicker"><span class="pip"></span>Part 1 · true randomness</div>
+  <h2 class="title">Does anything actually roll dice?</h2>
+  <div class="body split2">
+    <div class="card" style="display:flex;flex-direction:column;justify-content:center">
+      <span class="pip"></span>
+      <div class="quote">&ldquo;God does not<br>play dice.&rdquo;</div>
+      <hr class="hair" style="width:120px;margin:22px 0 0">
+      <div class="attr">Albert Einstein, letter to Max Born, 1926</div>
+      <p class="muted" style="font-size:13px;margin-top:12px">His position: apparent randomness is a confession of ignorance, not a property of the world.</p>
+    </div>
+    <div class="stack" style="justify-content:center">
+      <div class="qrow"><h4>Laplace's demon, 1814</h4>
+        <p>Know every particle's position and momentum, and both past and future follow by calculation. On this view randomness is not a thing — it's a gap in the observer.</p></div>
+      <div class="qrow"><h4>Chaos, not chance</h4>
+        <p>Dice, weather, a double pendulum: plain deterministic equations whose outcome flips on the tenth decimal place. Unpredictable is not the same as random.</p></div>
+      <div class="qrow"><h4>What that leaves us</h4>
+        <p>Every source a computer can reach is a physical process too messy to model. Not randomness in principle — randomness in practice.</p></div>
+    </div>
+  </div>
+  <div class="takeaway"><span class="pip"></span>
+    <p>For an engineer the question isn't whether the universe rolls dice — <span class="hl">it's whether your adversary can compute the roll.</span></p>
+  </div>
+</section>
+
+<!-- S06 PRNG merged -->
+<section class="slide" data-notes="合併頁,節奏要快。常見誤區:以為 CSPRNG「比較隨機」— 不是,兩者都是決定性的,差在可預測性的計算難度。
+Mersenne Twister 624 個輸出可還原內部狀態是很好的具體數字。
+可現場開 jshell 跑右邊那段給大家看。(~3分鐘)">
+  <div class="kicker"><span class="pip"></span>Part 1 · randomness in computers</div>
+  <h2 class="title">Computers are deterministic — a PRNG just unfolds a seed</h2>
+  <div class="body split2">
+    <div class="stack" style="gap:16px">
+      <div class="card">
+        <h4>PRNG — goal: statistical uniformity</h4>
+        <p><code>java.util.Random</code> is a linear congruential generator: next = (a·seed + c) mod m. Mersenne Twister has better statistics, but 624 outputs fully recover its internal state. Fine for simulation, games, sampling.</p>
+      </div>
+      <div class="card alt">
+        <h4>CSPRNG — goal: unpredictability</h4>
+        <p><code>SecureRandom</code>, <code>/dev/urandom</code>: built from hashes and block ciphers. No amount of output lets you compute the next one. For keys, session tokens, nonces.</p>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;justify-content:center">
+      <pre class="code"><span class="c">$ same seed, run twice</span>
+
+new Random(42).nextDouble()
+<span class="a">→ 0.7275  0.6832  0.3138 ...</span>
+
+new Random(42).nextDouble()
+<span class="a">→ 0.7275  0.6832  0.3138 ...</span></pre>
+      <p style="font-size:15px;font-weight:700;margin-top:18px">Identical. So where's the randomness?</p>
+    </div>
+  </div>
+  <div class="takeaway"><span class="pip"></span>
+    <p>Both are deterministic — the difference is only whether an adversary who sees outputs can compute the future.</p>
+  </div>
+</section>
+
+<!-- S07 Entropy -->
+<section class="slide" data-notes="四個來源刻意都是「混沌」而非量子,呼應上一頁 — 我們拿得到的熵,全是算不動的物理過程,不是形上學的真隨機。
+熔岩燈是全場最好記的例子,多停留一下。
+底部金句是第一部的結論,也是通往第二部的橋。(~2分鐘)">
+  <div class="kicker"><span class="pip"></span>Part 1 · randomness in computers</div>
+  <h2 class="title">Where do seeds come from? Entropy, scraped off the physical world</h2>
+  <div class="body cards4">
+    <div class="card"><h4>Lava lamp wall</h4>
+      <p>Cloudflare's San Francisco lobby: a wall of lava lamps on camera, turning fluid chaos into entropy (LavaRand).</p></div>
+    <div class="card"><h4>Thermal noise</h4>
+      <p>Intel RDRAND: an on-die circuit samples electron thermal noise and emits hardware randomness.</p></div>
+    <div class="card"><h4>Timing jitter</h4>
+      <p>The OS entropy pool (<code>/dev/urandom</code>): microscopic jitter from keyboard, mouse, interrupts, disk timing.</p></div>
+    <div class="card"><h4>Atmospheric noise</h4>
+      <p>random.org listens to radio static — lightning and interference no model can predict in advance.</p></div>
+  </div>
+  <div class="takeaway"><span class="pip"></span>
+    <p>All chaos, no chance. <span class="hl">Cryptography never needed true randomness — only randomness the adversary can't compute.</span></p>
+  </div>
+</section>
+
+<!-- S08 Divider 2 -->
+<section class="slide divider" data-notes="轉場:第二部是今天的核心。(30秒)">
+  <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+    <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/>
+    <path d="M3 21L21 3"/>
+  </svg>
+  <div class="num">02</div>
+  <div class="rule"></div>
+  <h2>Proving Things with Probability</h2>
+  <p>A classical proof gives 100% certainty. A probabilistic proof gives 1 &minus; 2<sup>&minus;n</sup> — and you choose n.</p>
+</section>
+
+<!-- S09 Survival curve -->
+<section class="slide" data-notes="核心觀念:證明不再是二元的,是機率的。
+強調「n 由驗證者決定」:你要多確定,就跑多少回合。
+2⁻³⁰ ≈ 十億分之一;2⁻⁸⁰ 已經低於硬體出錯率 — 比「數學證明被你看錯」的機率還低。(~3分鐘)">
+  <div class="kicker"><span class="pip"></span>Part 2 · probabilistic proofs</div>
+  <h2 class="title">The cheater's survival curve: halved every round</h2>
+  <div class="body" style="gap:26px">
+    <div style="flex:1.35;display:flex;flex-direction:column;justify-content:center">
+      <p style="font-size:14px;font-weight:700;text-align:center;margin-bottom:6px">P(successful cheating) = (1/2)<sup>n</sup></p>
+      <svg viewBox="0 0 580 360" style="width:100%">
+        <g stroke="#E2E4EA" stroke-width="1">
+          <line x1="40" y1="40" x2="560" y2="40"/><line x1="40" y1="110" x2="560" y2="110"/>
+          <line x1="40" y1="180" x2="560" y2="180"/><line x1="40" y1="250" x2="560" y2="250"/>
+          <line x1="40" y1="320" x2="560" y2="320"/>
+        </g>
+        <g fill="#868B98" font-size="11" font-family="Arial" text-anchor="end">
+          <text x="32" y="44">1.0</text><text x="32" y="114">0.75</text>
+          <text x="32" y="184">0.5</text><text x="32" y="254">0.25</text><text x="32" y="324">0</text>
+        </g>
+        <polyline fill="none" stroke="#C8322D" stroke-width="3" stroke-linejoin="round"
+          points="40,40 65,180 90,250 115,285 140,302 165,311 190,316 215,318 240,319 265,319.5 290,319.7 315,319.9 340,319.9 365,320 390,320 415,320 440,320 465,320 490,320 515,320 540,320"/>
+        <g fill="#C8322D">
+          <circle cx="40" cy="40" r="4"/><circle cx="65" cy="180" r="4"/><circle cx="90" cy="250" r="4"/>
+          <circle cx="115" cy="285" r="4"/><circle cx="140" cy="302" r="4"/><circle cx="165" cy="311" r="4"/>
+        </g>
+        <g fill="#868B98" font-size="11" font-family="Arial" text-anchor="middle">
+          <text x="40" y="340">0</text><text x="165" y="340">5</text><text x="290" y="340">10</text>
+          <text x="415" y="340">15</text><text x="540" y="340">20</text>
+          <text x="290" y="356" font-size="12">Rounds n</text>
+        </g>
+      </svg>
+    </div>
+    <div class="card alt statcard" style="flex:1">
+      <p class="muted" style="margin:0">Odds of surviving 30 rounds</p>
+      <div class="big" style="margin-top:14px">2<sup>&minus;30</sup></div>
+      <hr class="hair" style="margin:22px 0 0">
+      <div class="eq">&asymp; 1 in 1,073,741,824</div>
+      <div class="note">Harder than flipping 30 heads in a row — because it is exactly that.</div>
+    </div>
+  </div>
+  <div class="takeaway"><span class="pip"></span>
+    <p>A mathematical proof is 0% or 100%. An interactive proof drives the fooling odds below any bar you set.</p>
+  </div>
+</section>
+
+<!-- S10 Colorblind -->
+<section class="slide" data-notes="找一位觀眾上台演 3-5 回合(帶兩支不同色的筆),你演色盲那方。
+演完問全場:「我現在知道哪顆是紅的嗎?」— 不知道。這就是 zero-knowledge。
+時間緊的話這頁可以整個抽掉,和洞穴頁結構重複。(~3分鐘)">
+  <div class="kicker"><span class="pip"></span>Part 2 · live demo</div>
+  <h2 class="title">The colorblind friend &amp; two balls: let's play it live</h2>
+  <div class="body" style="flex-direction:column;gap:0">
+    <div style="display:flex;align-items:center;gap:34px">
+      <svg width="150" height="76" viewBox="0 0 150 76">
+        <circle cx="38" cy="38" r="34" fill="#C8322D"/><circle cx="112" cy="38" r="34" fill="#2E7D57"/>
+      </svg>
+      <p style="font-size:15px;color:var(--ink2);line-height:1.6">You see color; to me (colorblind) the balls look identical. Prove they're different colors — without ever telling me which one is red.</p>
+    </div>
+    <hr class="hair" style="margin:20px 0">
+    <div class="steps4" style="flex:1">
+      <div class="card"><div class="n">1</div><h4>I hide the balls</h4>
+        <p>A coin flip decides: swap hands, or don't.</p></div>
+      <div class="card"><div class="n">2</div><h4>I show you</h4>
+        <p>"Did I just swap them?"</p></div>
+      <div class="card"><div class="n">3</div><h4>You answer</h4>
+        <p>See color → always right. Don't → a pure guess, caught with probability 1/2 per round.</p></div>
+      <div class="card"><div class="n">4</div><h4>Repeat ×20</h4>
+        <p>All correct ⇒ I'm sure you see color (error 2⁻²⁰) — yet I still don't know which is red.</p></div>
+    </div>
+  </div>
+  <div class="takeaway"><span class="pip"></span>
+    <p>Zero-knowledge in embryo: I gained certainty that you see color — and zero knowledge about the colors.</p>
+  </div>
+</section>
+
+<!-- S11 Cave -->
+<section class="slide" data-notes="對照上一頁:結構一模一樣 — 承諾 commit、隨機挑戰 challenge、回應 response。這三步是所有互動式 ZKP 的骨架,記住它,Fiat-Shamir 會再用到。
+提示會後可以玩互動模擬器 cave_demo.html。(~3分鐘)">
+  <div class="kicker"><span class="pip"></span>Part 2 · the classic protocol</div>
+  <h2 class="title">The Ali Baba cave: ZKP's canonical classroom</h2>
+  <div class="body" style="gap:34px;align-items:center">
+    <svg viewBox="0 0 300 300" style="width:290px;flex:none">
+      <circle cx="150" cy="155" r="94" fill="none" stroke="#EDEEF2" stroke-width="42"/>
+      <rect x="130" y="36" width="40" height="46" fill="#FFFFFF"/>
+      <rect x="132" y="228" width="36" height="44" rx="3" fill="#C8322D"/>
+      <text x="150" y="26" text-anchor="middle" font-size="12" font-weight="700" fill="#3E424D" font-family="Arial">Entrance (verifier)</text>
+      <text x="150" y="290" text-anchor="middle" font-size="12" font-weight="700" fill="#C8322D" font-family="Arial">Magic door</text>
+      <text x="34" y="162" text-anchor="middle" font-size="22" font-weight="700" fill="#3E424D" font-family="Georgia">A</text>
+      <text x="266" y="162" text-anchor="middle" font-size="22" font-weight="700" fill="#3E424D" font-family="Georgia">B</text>
+    </svg>
+    <div class="stack" style="flex:1">
+      <div class="caverow"><span class="lbl">Secret</span>
+        <p>Deep in a ring-shaped cave is a door that opens only to a spoken password. I claim: I know it.</p></div>
+      <div class="caverow"><span class="lbl">Commit</span>
+        <p>You wait outside. I randomly take path A or B — you don't see which.</p></div>
+      <div class="caverow"><span class="lbl hot">Challenge</span>
+        <p>You walk to the entrance, flip a coin, and shout: "Come out via A!" (or B)</p></div>
+      <div class="caverow"><span class="lbl">Response</span>
+        <p>Know the password → any demand is easy. Don't → only a 1/2 chance I picked the right side.</p></div>
+      <div class="caverow"><span class="lbl">Repeat</span>
+        <p>Pass n rounds ⇒ you're sure I know it (error 2⁻ⁿ) — yet you never heard a syllable of it.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- S12 Three properties -->
+<section class="slide" data-notes="把前兩頁的例子對回這三性質:色盲例、洞穴例各自如何滿足。
+嚴謹版的 zero-knowledge 用「模擬器」定義(驗證者能自己偽造出同分佈的對話紀錄),口頭點一句給進階聽眾即可,不展開。(~2分鐘)">
+  <div class="kicker"><span class="pip"></span>Part 2 · formal definition</div>
+  <h2 class="title">The three properties of a zero-knowledge proof</h2>
+  <div class="body cards3">
+    <div class="card">
+      <h3>Completeness</h3>
+      <p style="color:var(--muted);font-weight:700;margin-top:6px">Truth always passes</p>
+      <hr class="hair">
+      <p>An honest prover facing an honest verifier succeeds every single time.</p>
+    </div>
+    <div class="card">
+      <h3>Soundness</h3>
+      <p style="color:var(--muted);font-weight:700;margin-top:6px">Lies get caught</p>
+      <hr class="hair">
+      <p>A cheating prover passes with probability ≤ 2⁻ⁿ — this is where probability does the work.</p>
+    </div>
+    <div class="card alt">
+      <h3>Zero-Knowledge</h3>
+      <p style="color:var(--accent);font-weight:700;margin-top:6px">Nothing else leaks</p>
+      <hr class="hair">
+      <p>The verifier learns exactly one thing: "the statement is true." Nothing transferable beyond it.</p>
+    </div>
+  </div>
+  <div class="takeaway"><span class="pip"></span>
+    <p>The first two run on probability; the third is the soul of the technique.</p>
+  </div>
+</section>
+
+<!-- S13 Where the probability lives -->
+<section class="slide" data-notes="這頁是補上第二部和第四部之間的斷層。多數人聽完洞穴會有一個沒說出口的疑問:買酒那個證明看起來只是驗簽章,骰子到底在哪?
+
+三個講法依序:
+1. 先破框架 —「用機率證明你是對的」是錯的說法。誠實者過關機率是 100%,他不需要運氣。機率只作用在說謊的人身上。驗證者的推理是反證法加一個機率逃生口:如果你在說謊,你必須連中 30 次;你過了;所以要嘛你誠實,要嘛你中了十億分之一。
+2. 順序就是全部。承諾在前、挑戰在後,說謊者在還沒看到題目時就必須押寶。順序顛倒的話作弊者 100% 過關 — 這也是第三部 PS3 事故的同一個道理。
+3. SNARK 看起來沒擲骰子,是因為它擲的是一顆 2^256 面的骰子,擲一次就夠。把「這段計算做對了」變成多項式恆等式,兩個不同的 d 次多項式最多在 d 個點相同,隨機取一點就抓得到。d≈2^20、|F|≈2^256,被騙機率 2^-236。
+
+順帶點破:這也解釋了為什麼驗證那麼便宜 — 驗證者不是重算一遍,是抽查一個點。機率買到的就是這個捷徑。
+
+最後分清楚:機率負責 soundness;zero-knowledge 靠的是 blinding 和模擬器論證,跟機率無關。兩件事不要混。(~3分鐘)">
+  <div class="kicker"><span class="pip"></span>Part 2 · the mechanism</div>
+  <h2 class="title">Where the probability actually lives</h2>
+  <p class="lead">It never proves you are right. It makes lying survivable <i>only by luck</i> — so the verifier reasons backwards: <b>“If you were lying you'd have had to survive 30 coin flips. You did. So either you're honest, or you just got one-in-a-billion lucky.”</b></p>
+  <div class="body cards3">
+    <div class="card">
+      <h4>The honest prover rolls nothing</h4>
+      <hr class="hair">
+      <p>Completeness is exact: someone who really knows the secret can answer <i>every</i> possible challenge, so they pass with probability 1. No luck is involved on that side — ever.</p>
+      <p style="margin-top:12px"><b>Probability only ever acts on the liar.</b></p>
+    </div>
+    <div class="card">
+      <h4>Commit first, challenge second</h4>
+      <hr class="hair">
+      <p style="margin-bottom:14px">The order is the whole trick — a liar must place their bet before seeing the question, and can only answer a fraction of the questions.</p>
+      <svg viewBox="0 0 330 92" style="width:100%">
+        <rect x="0" y="16" width="94" height="34" rx="6" fill="#EDEEF2"/>
+        <text x="47" y="38" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1B1D23" font-family="Arial">commit</text>
+        <text x="47" y="66" text-anchor="middle" font-size="10.5" fill="#868B98" font-family="Arial">bet placed</text>
+        <path d="M100,33 L114,33" stroke="#868B98" stroke-width="1.6"/>
+        <polygon points="120,33 112,29 112,37" fill="#868B98"/>
+        <rect x="124" y="16" width="94" height="34" rx="6" fill="#C8322D"/>
+        <text x="171" y="38" text-anchor="middle" font-size="12.5" font-weight="700" fill="#FFFFFF" font-family="Arial">challenge</text>
+        <text x="171" y="66" text-anchor="middle" font-size="10.5" fill="#C8322D" font-family="Arial" font-weight="700">random, unseeable</text>
+        <path d="M224,33 L238,33" stroke="#868B98" stroke-width="1.6"/>
+        <polygon points="244,33 236,29 236,37" fill="#868B98"/>
+        <rect x="248" y="16" width="82" height="34" rx="6" fill="#EDEEF2"/>
+        <text x="289" y="38" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1B1D23" font-family="Arial">response</text>
+        <text x="289" y="66" text-anchor="middle" font-size="10.5" fill="#868B98" font-family="Arial">too late to move</text>
+        <text x="0" y="88" font-size="10.5" fill="#868B98" font-family="Arial">Reverse these two and a cheater passes every single time.</text>
+      </svg>
+    </div>
+    <div class="card alt">
+      <h4>A die with 2<sup>256</sup> faces</h4>
+      <hr class="hair">
+      <p style="margin-bottom:10px">A SNARK looks like it rolls nothing — it rolls once, enormously. The computation becomes a polynomial identity, and two <i>different</i> degree-<i>d</i> polynomials agree at <b>at most d points</b>:</p>
+      <svg viewBox="0 0 330 104" style="width:100%">
+        <line x1="0" y1="94" x2="330" y2="94" stroke="#E2E4EA" stroke-width="1.2"/>
+        <path d="M0,52 C 55,14 90,86 140,52 C 190,18 230,86 275,52 C 300,35 315,62 330,50"
+              fill="none" stroke="#1B1D23" stroke-width="2.2"/>
+        <path d="M0,52 C 50,38 95,38 140,52 C 185,66 235,34 275,52 C 305,66 315,38 330,50"
+              fill="none" stroke="#C8322D" stroke-width="2.2"/>
+        <circle cx="140" cy="52" r="4" fill="#2E7D57"/><circle cx="275" cy="52" r="4" fill="#2E7D57"/>
+        <circle cx="0" cy="52" r="4" fill="#2E7D57"/>
+        <g stroke="#868B98" stroke-width="1.1" stroke-dasharray="3 3">
+          <line x1="70" y1="10" x2="70" y2="94"/><line x1="210" y1="10" x2="210" y2="94"/>
+        </g>
+        <text x="74" y="18" font-size="10.5" fill="#868B98" font-family="Arial">random z</text>
+        <text x="214" y="18" font-size="10.5" fill="#868B98" font-family="Arial">random z</text>
+        <text x="0" y="104" font-size="10.5" fill="#2E7D57" font-family="Arial">● agree here — everywhere else, the lie shows</text>
+      </svg>
+      <p style="margin-top:8px"><b>d / |F| &asymp; 2<sup>20</sup> / 2<sup>256</sup> = 2<sup>&minus;236</sup></b> — the cave's 2⁻ⁿ, reached in a single throw.</p>
+    </div>
+  </div>
+  <div class="takeaway"><span class="pip"></span>
+    <p>Passing isn't the evidence. <span class="hl">The near-impossibility of a liar passing is.</span> And it's why verifying is cheap: you sample one point instead of redoing the work.</p>
+  </div>
+</section>
+
+<!-- S14 Four stages -->
+<section class="slide" data-notes="這頁把上一頁的「順序就是全部」放大成具體的四個階段。用雲霄飛車軌道 + 保險箱的比喻講最好懂:
+
+1. 建造軌道 — 證明者拿自己手上的正確解答,透過算術化(arithmetization)把問題和秘密編碼成一個巨大的多項式。這一步在他自己電腦裡默默完成,沒有人看著。
+
+2. 鎖進保險箱 — 多項式太大不能整包傳,傳了也會洩密。所以證明者對它生成一個極小的承諾(commitment),幾十個 bytes,交給驗證者。喀嚓一聲,軌道形狀被鎖死,事後絕對改不了。
+
+3. 擲骰子 — 驗證者拿到鎖死的保險箱之後,才啟動隨機數,從 2^256 大的體裡挑一個座標 z。台詞就是:「你現在不能改答案了,請告訴我你的軌道在 z 的高度是多少?」
+
+4. 開箱檢查 — 證明者把 z 代入多項式算出值,連同 opening proof 一起交出。驗證者用手上的承諾快速核對:這個高度是不是真的來自原本鎖在裡面的那條軌道。
+
+要強調的點:紅色虛線那條「不可回頭線」就是全部的防線。如果證明者能在看到 z 之後才蓋軌道,他隨便都能蓋一條剛好通過那個點的 — 作弊 100% 成功。所以 commit 必須嚴格早於 challenge。
+
+這也回頭解釋了 Fiat-Shamir 為什麼安全:c = Hash(public ∥ commitment),commitment 已經在 hash 的輸入裡,想換一個對自己有利的 z 就得換 commitment,換了 commitment 又得重算 hash — 等於暴力搜尋。(~3分鐘)">
+  <div class="kicker"><span class="pip"></span>Part 2 · the mechanism</div>
+  <h2 class="title">In detail: build the track, lock it, then roll</h2>
+  <p class="lead">The polynomial is constructed and frozen <i>before</i> the verifier picks z. Everything else is bookkeeping — this ordering is the entire defence.</p>
+  <div class="body" style="flex-direction:column;gap:18px">
+    <svg viewBox="0 0 1160 100" style="width:100%;flex:none">
+      <line x1="30" y1="62" x2="1130" y2="62" stroke="#E2E4EA" stroke-width="2"/>
+
+      <circle cx="145" cy="62" r="25" fill="#F4F5F7"/>
+      <path d="M132,68 C138,50 145,76 152,56 C155,48 157,56 158,60" fill="none" stroke="#1B1D23" stroke-width="2.2"/>
+
+      <circle cx="435" cy="62" r="25" fill="#F4F5F7"/>
+      <path d="M429,58 v-5 a6,6 0 0 1 12,0 v5" fill="none" stroke="#1B1D23" stroke-width="2.2"/>
+      <rect x="425" y="58" width="20" height="15" rx="3" fill="#1B1D23"/>
+
+      <circle cx="725" cy="62" r="25" fill="#F4F5F7"/>
+      <rect x="714" y="51" width="22" height="22" rx="5" fill="none" stroke="#C8322D" stroke-width="2.2"/>
+      <circle cx="720" cy="57" r="2" fill="#C8322D"/><circle cx="730" cy="67" r="2" fill="#C8322D"/>
+      <circle cx="725" cy="62" r="2" fill="#C8322D"/>
+
+      <circle cx="1015" cy="62" r="25" fill="#F4F5F7"/>
+      <polyline points="1005,62 1012,70 1026,52" fill="none" stroke="#2E7D57" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+      <line x1="580" y1="24" x2="580" y2="94" stroke="#C8322D" stroke-width="1.4" stroke-dasharray="4 4"/>
+      <text x="580" y="16" text-anchor="middle" font-size="11.5" font-weight="700" fill="#C8322D" font-family="Arial">the shape is frozen here — nothing can be rebuilt past this line</text>
+
+      <g font-size="11.5" fill="#868B98" font-family="Arial" text-anchor="middle">
+        <text x="145" y="99">prover, alone</text>
+        <text x="435" y="99">prover → verifier</text>
+        <text x="725" y="99">verifier → prover</text>
+        <text x="1015" y="99">prover → verifier</text>
+      </g>
+    </svg>
+
+    <div class="steps4" style="flex:1">
+      <div class="card">
+        <div class="n">1</div>
+        <h4>Build the track</h4>
+        <p>Arithmetization: the statement and the secret witness are encoded into one enormous polynomial. This happens privately, on the prover's own machine, with nobody watching.</p>
+      </div>
+      <div class="card">
+        <div class="n">2</div>
+        <h4>Lock the box</h4>
+        <p>The polynomial is far too big to send — and sending it would leak the secret. Instead the prover sends a tiny <b>commitment</b>: a few dozen bytes that pin the shape down without revealing it.</p>
+      </div>
+      <div class="card alt">
+        <div class="n">3</div>
+        <h4>Roll the die</h4>
+        <p>Only now does the verifier draw <code>z</code> at random from a field of ~2²⁵⁶ elements. "You can't change your answer any more. How high is your track at <code>z</code>?"</p>
+      </div>
+      <div class="card">
+        <div class="n">4</div>
+        <h4>Open and check</h4>
+        <p>The prover returns <code>P(z)</code> plus an opening proof. The verifier checks that this value genuinely came from the polynomial sealed inside the commitment it already holds.</p>
+      </div>
+    </div>
+  </div>
+  <div class="takeaway"><span class="pip"></span>
+    <p>A prover may build any track they like. <span class="hl">What they cannot do is rebuild it after the dice have landed.</span></p>
+  </div>
+</section>
+
+<!-- S15 Divider 3 -->
+<section class="slide divider" data-notes="轉場:把第一部(隨機)和第二部(證明)縫起來 — 這段是多數簡報會漏掉的。(30秒)">
+  <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+    <path d="M13 2L4.5 13.5H11L10 22l8.5-11.5H12L13 2z"/>
+  </svg>
+  <div class="num">03</div>
+  <div class="rule"></div>
+  <h2>Randomness Is the Protocol's Lifeline</h2>
+  <p>Every bit of soundness rests on one assumption: the challenge cannot be predicted.</p>
+</section>
+
+<!-- S16 Predictable challenge -->
+<section class="slide" data-notes="PS3 事故技術上是簽章的 nonce、不是 ZKP 的挑戰,但失效機制同構:該隨機的地方不隨機,安全保證即刻歸零。ECDSA 與 Schnorr 類協議本來就是 sigma protocol 的親戚。
+可補一句:Debian OpenSSL 2008 熵災難是另一個例子。(~3分鐘)">
+  <div class="kicker"><span class="pip"></span>Part 3 · the role of randomness</div>
+  <h2 class="title">A predictable challenge makes the proof worthless</h2>
+  <div class="body split2">
+    <div class="card">
+      <h4>Why must challenges be random?</h4>
+      <hr class="hair">
+      <ul class="dots">
+        <li>Recall the cave: a cheater who can guess your A/B call just walks that path first — and passes every round.</li>
+        <li>So the 2⁻ⁿ soundness bound depends entirely on challenge unpredictability.</li>
+        <li>If the verifier uses a weak PRNG — recoverable, predictable — any number of rounds is a placebo.</li>
+      </ul>
+    </div>
+    <div class="card alt">
+      <h4>Real-world failure: PS3 (2010)</h4>
+      <hr class="hair">
+      <ul class="dots">
+        <li>Sony's ECDSA signatures reused a fixed value for the nonce k — which must be fresh randomness every time.</li>
+        <li>Two signatures, one k → two equations → solve → the private key falls out.</li>
+        <li>fail0verflow demoed it at CCC; homebrew signing was open forever after.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="takeaway"><span class="pip"></span>
+    <p>Crypto protocols rarely fail on the math — <span class="hl">they fail on the random numbers.</span></p>
+  </div>
+</section>
+
+<!-- S17 Fiat-Shamir -->
+<section class="slide" data-notes="關鍵直覺:hash 輸出無法在選定 commit 前被操控 — 想挑一個對自己有利的 c,只能不斷換 commit 重算,等於暴力搜尋。
+呼應第一部:「隨機」的工程定義是不可預測,而 hash 的輸出對算不出 preimage 的人來說就是不可預測。random oracle model 一句帶過即可。
+講完可以說:「記住『不需要對方在場』這件事,下一段整段都靠它。」(~3分鐘)">
+  <div class="kicker"><span class="pip"></span>Part 3 · the role of randomness</div>
+  <h2 class="title">Fiat–Shamir: a hash impersonating an unpredictable verifier</h2>
+  <p class="lead">Problem: interaction takes many round-trips — and often there's nobody to interact with. How do we turn an interactive proof into a static one?</p>
+  <div class="body split2">
+    <div class="card">
+      <h3>Interactive</h3>
+      <hr class="hair">
+      <p style="font-size:14.5px;color:var(--ink2)">1. &nbsp;Prover sends a commitment</p>
+      <p style="font-size:14.5px;color:var(--accent);font-weight:700">2. &nbsp;Verifier "flips coins" → challenge c</p>
+      <p style="font-size:14.5px;color:var(--ink2)">3. &nbsp;Prover answers with a response</p>
+      <p class="muted" style="margin-top:22px;font-size:12.5px">Challenge from a live verifier + real randomness</p>
+    </div>
+    <div class="card alt">
+      <h3>Non-interactive (Fiat–Shamir)</h3>
+      <hr class="hair">
+      <p class="mono" style="color:var(--accent);font-weight:700;font-size:16px">c = Hash(public ∥ commitment)</p>
+      <p>The challenge comes from a hash — before committing, nobody can steer what c will be.</p>
+      <p>The prover talks to itself and outputs one blob that anyone can verify later.</p>
+      <p style="margin-top:12px;font-size:12.5px" class="muted">In a SNARK this same hash also fixes <i>where</i> the polynomial identity gets sampled — the die from slides 13–14, thrown by a function instead of a person. The commitment is inside the hash input, so steering z means redoing the commitment — and the hash with it.</p>
+    </div>
+  </div>
+  <div class="takeaway"><span class="pip"></span>
+    <p>A deterministic function simulating unpredictable randomness — <span class="hl">the answer to "what is probability inside a computer?"</span></p>
+  </div>
+</section>
+
+<!-- S18 Divider 4 -->
+<section class="slide divider" data-notes="轉場:接下來這一段是一場辯論。先站到反方那邊,把最強的反駁講完整,再拆。(30秒)">
+  <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+    <rect x="2.5" y="6" width="19" height="13" rx="2.5"/><path d="M2.5 10h19"/>
+    <circle cx="17.5" cy="14.5" r="1.4" fill="currentColor" stroke="none"/>
+  </svg>
+  <div class="num">04</div>
+  <div class="rule"></div>
+  <h2>Why Not Just Call an API?</h2>
+  <p>Both designs can answer in one bit. The difference has nothing to do with the size of the answer.</p>
+</section>
+
+<!-- S19 The objection -->
+<section class="slide" data-notes="主動把最強的反駁端上桌 — 對工程師聽眾,自己先講出來遠比被舉手戳破強。
+語氣要真的承認它成立,不要急著反駁。
+講完停頓,問全場:「這樣有什麼問題?」給 10 秒再翻頁。(~2分鐘)">
+  <div class="kicker"><span class="pip"></span>Part 4 · the objection</div>
+  <h2 class="title">"Just build an endpoint that returns a boolean."</h2>
+  <div class="body split2" style="align-items:center">
+    <pre class="code">POST https://gov-id-api.tw/verify
+{
+  <span class="a">"subject_id"</span>:  "A123456789",
+  <span class="a">"verifier_id"</span>: "bar_taipei_001",
+  "predicate":   "age >= 18"
+}
+
+<span class="c">Response:</span> { "result": true }</pre>
+    <div>
+      <p style="font-size:19px;line-height:1.55"><b>And it works.</b> The response is one bool. Birthdate, name, address — none of them ever reach the bar. As far as <i>content disclosure</i> goes, this is already minimal.</p>
+      <p class="muted" style="font-size:13.5px;margin-top:18px;line-height:1.6">If shrinking the answer were the whole problem, we could stop here. No cryptography required.</p>
+    </div>
+  </div>
+  <div class="takeaway"><span class="pip"></span>
+    <p><span class="hl">So let's look at what the server writes down.</span></p>
+  </div>
+</section>
+
+<!-- S20 query_log -->
+<section class="slide" data-notes="這頁停久一點,讓 SQL 停在螢幕上。工程師看到 INSERT 就懂了,不需要解釋隱私理論。
+關鍵語氣:這不是「可能被駭」的假設性風險,是系統正常運作就必然累積的資料。
+可以問全場:「這張表誰有權限查?保留多久?有沒有寫進當初的 PIA?」— 通常沒有,因為它是意外長出來的。
+補一句:你原本的設計目標是最小化揭露,結果副產品是一個比原始資料庫更敏感的行為軌跡表。(~2分鐘)">
+  <div class="kicker"><span class="pip"></span>Part 4 · the objection</div>
+  <h2 class="title">Every call leaves a row</h2>
+  <div class="body" style="flex-direction:column;justify-content:center;gap:30px">
+    <pre class="code big">INSERT INTO query_log
+  (<span class="a">subject_id</span>, <span class="a">verifier_id</span>, predicate, timestamp, result)
+VALUES
+  (<span class="a">'A123456789'</span>, <span class="a">'bar_taipei_001'</span>, 'age>=18',
+   '2026-08-13 23:47:12', true);</pre>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:22px">
+      <p style="font-size:14px;line-height:1.6;color:var(--ink2)">You set out to build a system that <b style="color:var(--ink)">discloses as little as possible</b>.</p>
+      <p style="font-size:14px;line-height:1.6;color:var(--ink2)">What you actually built is a table of <b style="color:var(--ink)">who was where, when</b>.</p>
+      <p style="font-size:14px;line-height:1.6;color:var(--ink2)">Nobody has to be hacked for this. It accumulates <b style="color:var(--ink)">when the system works correctly</b>.</p>
+    </div>
+  </div>
+  <div class="takeaway"><span class="pip"></span>
+    <p>The response was one bit. <span class="hl">The request was the payload.</span></p>
+  </div>
+</section>
+
+<!-- S21 Four costs -->
+<section class="slide" data-notes="四點裡第 3、4 點最少人想到,各多花一句。
+第 2 點可以拉自己的經驗:一個 stored procedure 或 connection pool 出問題可以卡死整條交易鏈 — 現在把這個依賴放大到全國年齡驗證,SLA 壓力等級完全不同。
+第 4 點是最根本的信任問題:中心化模式下 subject 只能「相信」issuer 誠實;ZK 模式下 issuer 只能在發證那一刻決定簽或不簽,之後沒有插手空間。(~3分鐘)">
+  <div class="kicker"><span class="pip"></span>Part 4 · the objection</div>
+  <h2 class="title">Four costs, none of them about the answer's size</h2>
+  <div class="body cards4" style="gap:16px">
+    <div class="card" style="padding:18px 20px">
+      <h4>1 &nbsp;The log becomes a new surveillance database</h4>
+      <p style="font-size:12.5px">You didn't design this dataset; it emerged. A behavioural trail — who, where, when — is strictly more sensitive than the birth-date field you were protecting. Retention, access control, subpoena exposure: all yours to own now.</p>
+    </div>
+    <div class="card" style="padding:18px 20px">
+      <h4>2 &nbsp;The issuer is a runtime SPOF</h4>
+      <p style="font-size:12.5px">Outage, DDoS, maintenance window, region failure → every bar, convenience store and online platform in the country stops verifying at the same moment. You've seen one connection pool stall a whole transaction chain; this is that blast radius, nationwide. And nothing works offline.</p>
+    </div>
+    <div class="card" style="padding:18px 20px">
+      <h4>3 &nbsp;The verifier keeps a reusable identifier</h4>
+      <p style="font-size:12.5px">To ask the question it must hand over <code>subject_id</code> — a high-value key into every system that indexes on national ID. A compromised or dishonest verifier stores it and replays it elsewhere, and the issuer cannot police what happens after it answers.</p>
+    </div>
+    <div class="card alt" style="padding:18px 20px">
+      <h4>4 &nbsp;The issuer can lie selectively, unaccountably</h4>
+      <p style="font-size:12.5px">You can only trust it answered honestly. If it is pressured, compromised, or simply targets someone, it returns <code>false</code> — and the subject cannot prove otherwise, because the judgement happened inside a box they can't see.</p>
+    </div>
+  </div>
+  <div class="takeaway"><span class="pip"></span>
+    <p>The bit isn't the leak. <span class="hl">The asking is.</span></p>
+  </div>
+</section>
+
+<!-- S22 Two minimizations -->
+<section class="slide" data-notes="這是整場的樞紐 — 前面三頁是舉證,這頁是結論。
+最重要的是讓聽眾看見這是兩個獨立維度,不是同一件事的兩種程度。混為一談就會覺得 ZK 是過度工程。
+一句話版本:如果只在乎回傳內容多小,中心化 API 已經夠了;ZK 存在的理由,是解決「查詢動作本身」帶來的問題。(~3分鐘)">
+  <div class="kicker"><span class="pip"></span>Part 4 · the real distinction</div>
+  <h2 class="title">Two minimizations, not one</h2>
+  <div class="body split2">
+    <div class="card">
+      <h3>Content minimization</h3>
+      <hr class="hair">
+      <p style="font-size:14px">Don't let the verifier see your birthdate, name, address.</p>
+      <div class="verdict">Centralized API: <span class="ok">solved ✓</span></div>
+      <p style="font-size:13px">Returning <code>{result: true}</code> is genuinely enough.</p>
+      <p class="muted" style="font-size:12.5px;margin-top:14px">ZK not required. This is the part the objection gets right.</p>
+    </div>
+    <div class="card alt">
+      <h3>Query minimization</h3>
+      <hr class="hair">
+      <p style="font-size:14px">Don't let the issuer know who is checking whom. Don't require it online. Don't leave it room to lie selectively.</p>
+      <div class="verdict">Centralized API: <span class="no">structurally impossible ✗</span></div>
+      <p style="font-size:13px">The request <i>is</i> the leak — no response format fixes that.</p>
+      <p class="muted" style="font-size:12.5px;margin-top:14px">This is what ZK is actually for.</p>
+    </div>
+  </div>
+  <div class="takeaway"><span class="pip"></span>
+    <p>The difference isn't how small the answer is. <span class="hl">It's whether you have to ask anyone at all.</span></p>
+  </div>
+</section>
+
+<!-- S23 Stage 1 issuance -->
+<section class="slide" data-notes="強調兩件事:(1) 簽的是 commitment 不是明文 — 這是後面能做 selective disclosure 的關鍵;(2) 這是一次性的,之後 issuer 完全退場。
+blinding factor 的作用一句帶過:沒有 r 的話,生日只有幾萬種可能,commitment 直接被暴力枚舉。
+對照 JWT:發證等於 issue 一張 token,只是 payload 藏在 commitment 裡,而且每次出示都重新隨機化,所以兩次出示無法被關聯 — 這是 JWT 的 jti / 簽章 bytes 做不到的。(~2分鐘)">
+  <div class="kicker"><span class="pip"></span>Part 4 · how it actually works</div>
+  <h2 class="title">Stage 1 — Issuance: the only time the issuer participates</h2>
+  <div class="body split2" style="align-items:center">
+    <div class="stack">
+      <div class="qrow"><h4>1 &nbsp;Identify, once</h4>
+        <p>You prove who you are at the registration office. The issuer confirms <code>birthdate = 2000-03-15</code>.</p></div>
+      <div class="qrow"><h4>2 &nbsp;Commit</h4>
+        <p><code>C = Commit(birthdate, r)</code> — where <code>r</code> is a random blinding factor.</p></div>
+      <div class="qrow"><h4>3 &nbsp;Sign the commitment, not the plaintext</h4>
+        <p><code>σ = Sign(issuer_sk, C)</code></p></div>
+      <div class="qrow"><h4>4 &nbsp;Hand it over</h4>
+        <p>The credential lands in your wallet. The issuer's job is done.</p></div>
+    </div>
+    <div>
+      <pre class="code">credential = {
+  birthdate:        2000-03-15,   <span class="c">← only you</span>
+  blinding_factor:  r,            <span class="c">← only you</span>
+  commitment:       C,
+  issuer_signature: σ
+}</pre>
+      <p class="muted" style="font-size:12.5px;margin-top:16px;line-height:1.65">Same bones as a JWT — issuer-signed, client-held. Two differences: the payload hides inside the commitment, and every presentation is re-randomized, so two visits can't be linked.</p>
+    </div>
+  </div>
+  <div class="takeaway"><span class="pip"></span>
+    <p>From this moment the issuer <span class="hl">never learns when, where, or how often you use it.</span></p>
+  </div>
+</section>
+
+<!-- S24 Circuit IO -->
+<section class="slide" data-notes="這頁是給想看細節的人。時間緊就整頁抽掉,口頭講一句「circuit 只驗三件事」。
+最容易被誤解的是 nonce — 很多人以為它是驗證邏輯的一部分,不是,它只防重放。
+threshold 為什麼要固定:如果 verifier 能任意改,他可以送 threshold=19、20、21... 二分搜出你的實際年齡,selective disclosure 就破功了。
+range proof 一句帶過:證明一個數落在某個區間,而不揭露這個數。(~3分鐘)">
+  <div class="kicker"><span class="pip"></span>Part 4 · how it actually works</div>
+  <h2 class="title">Stage 2 — Proving: what goes in, what gets checked</h2>
+  <div class="body" style="flex-direction:column;gap:16px">
+    <div class="split2" style="gap:20px">
+      <div class="card" style="padding:18px 20px">
+        <h4 style="font-size:14px">Private (witness) — never leaves the phone</h4>
+        <hr class="hair" style="margin:10px 0">
+        <p class="mono" style="font-size:13px;line-height:1.9;color:var(--ink)">birthdate = 2000-03-15<br>blinding_factor r<br>issuer_signature σ</p>
+      </div>
+      <div class="card alt" style="padding:18px 20px">
+        <h4 style="font-size:14px">Public input — sent alongside the proof</h4>
+        <hr class="hair" style="margin:10px 0">
+        <p class="mono" style="font-size:13px;line-height:1.9;color:var(--ink)">today = 2026-08-13 &nbsp;·&nbsp; threshold = 18<br>issuer_public_key &nbsp;·&nbsp; nonce (from the bar)</p>
+      </div>
+    </div>
+    <div class="card" style="padding:16px 20px">
+      <h4 style="font-size:14px">The circuit checks exactly three things</h4>
+      <hr class="hair" style="margin:10px 0">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px">
+        <p style="font-size:13px;margin:0"><b>a.</b> The commitment really corresponds to <code>(birthdate, r)</code></p>
+        <p style="font-size:13px;margin:0"><b>b.</b> <code>σ</code> is a valid issuer signature <i>on that commitment</i></p>
+        <p style="font-size:13px;margin:0"><b>c.</b> <code>today − birthdate ≥ threshold</code> — a range proof</p>
+      </div>
+    </div>
+    <table class="grid tight">
+      <thead><tr><th>Public input</th><th>Who decides it</th><th>Can either side tamper?</th></tr></thead>
+      <tbody>
+        <tr><td><code>threshold</code></td><td>Fixed by regulation at circuit-design time</td>
+          <td>No — otherwise a verifier could binary-search your exact age</td></tr>
+        <tr><td><code>today</code></td><td>A time source both sides trust</td>
+          <td>No — otherwise either side could shift the result</td></tr>
+        <tr><td><code>nonce</code></td><td><b>The bar, on the spot</b></td>
+          <td>The only value the verifier truly chooses. Its job is replay prevention, not verification logic.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- S25 Asymmetry -->
+<section class="slide" data-notes="這頁把整場收束回開場的問題。左圖的重點是那句「全程沒有一次連回 issuer」。
+不對稱性對工程師很有說服力:證明貴、驗證便宜,而且貴的那邊是你自己的手機,不是要撐全國流量的伺服器。
+右表第三列(不知道你是 19 還是 70)常常是全場「喔!」的地方 — 中心化 API 也做得到,但實體證件做不到,值得點名。
+順帶提:proof 幾百 bytes ~ 幾 KB,離線用 QR code 傳就夠。(~2分鐘)">
+  <div class="kicker"><span class="pip"></span>Part 4 · how it actually works</div>
+  <h2 class="title">Stage 3 — Verifying: expensive to prove, cheap to check</h2>
+  <div class="body split2" style="gap:30px">
+    <div>
+      <svg viewBox="0 0 470 250" style="width:100%">
+        <text x="10" y="16" font-size="13" font-weight="700" fill="#1B1D23" font-family="Arial">Your phone</text>
+        <text x="290" y="16" font-size="13" font-weight="700" fill="#1B1D23" font-family="Arial">The bar's device</text>
+        <line x1="40" y1="30" x2="40" y2="235" stroke="#E2E4EA" stroke-width="2"/>
+        <line x1="350" y1="30" x2="350" y2="235" stroke="#E2E4EA" stroke-width="2"/>
+        <rect x="10" y="46" width="180" height="62" rx="7" fill="#F4F5F7"/>
+        <text x="24" y="68" font-size="12" fill="#1B1D23" font-family="Arial">witness generation</text>
+        <text x="24" y="86" font-size="12" fill="#1B1D23" font-family="Arial">+ proof generation</text>
+        <text x="24" y="102" font-size="11" fill="#868B98" font-family="Arial">slow · local · offline-capable</text>
+        <line x1="40" y1="140" x2="342" y2="140" stroke="#C8322D" stroke-width="2"/>
+        <polygon points="350,140 340,135 340,145" fill="#C8322D"/>
+        <text x="120" y="132" font-size="12" font-weight="700" fill="#C8322D" font-family="Arial">(π, public_inputs)</text>
+        <text x="112" y="158" font-size="11" fill="#868B98" font-family="Arial">a few hundred bytes to a few KB</text>
+        <rect x="270" y="176" width="192" height="58" rx="7" fill="#EDEEF2"/>
+        <text x="284" y="197" font-size="12" fill="#1B1D23" font-family="Arial">verify(vk, public_inputs, π)</text>
+        <text x="284" y="214" font-size="11" fill="#868B98" font-family="Arial">fast — milliseconds, local</text>
+        <text x="284" y="229" font-size="12" font-weight="700" fill="#2E7D57" font-family="Arial">→ true / false</text>
+      </svg>
+      <p style="font-size:13.5px;font-weight:700;margin-top:6px">No network call to the issuer anywhere in this diagram.</p>
+    </div>
+    <div class="card" style="display:flex;align-items:center">
+      <div class="knows">
+        <div class="col">
+          <h4>The bar learns</h4>
+          <ul class="y">
+            <li>This person holds a valid government-issued credential</li>
+            <li>The predicate holds: age ≥ 18</li>
+            <li>The proof was generated just now, not replayed</li>
+          </ul>
+        </div>
+        <div class="col">
+          <h4>The bar never learns</h4>
+          <ul class="n">
+            <li>The actual date of birth</li>
+            <li>Name, ID number, address</li>
+            <li>Whether they're 19 or 70</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="takeaway"><span class="pip"></span>
+    <p>The heavy work sits with the person who has something to prove — <span class="hl">not with the institution, and not on the network.</span></p>
+  </div>
+</section>
+
+<!-- S26 Three architectures -->
+<section class="slide" data-notes="這頁是定位頁,主線已經講完,時間緊可抽。
+注意兩個誠實標註:撤銷那列 ZK 是明確弱項(下一頁就講);「只揭露必要資訊」中心化那格寫「取決於 API 設計」而不是打勾或打叉。
+實體證件「防止 verifier 記錄」只能算部分 — 店員肉眼看見,但沒有系統化 log。(~2分鐘)">
+  <div class="kicker"><span class="pip"></span>Part 4 · where ZK sits</div>
+  <h2 class="title">Three architectures, seven questions</h2>
+  <div class="body" style="flex-direction:column">
+    <table class="grid tight">
+      <thead><tr><th></th><th>Physical ID</th><th>Centralized API</th><th>ZK credential</th></tr></thead>
+      <tbody>
+        <tr><td>Works offline</td><td class="y">✓</td><td class="n">✗</td><td class="y">✓</td></tr>
+        <tr><td>No online third party at verification</td><td class="y">✓</td><td class="n">✗</td><td class="y">✓</td></tr>
+        <tr><td>Discloses only what's needed</td><td class="n">✗ the whole card</td><td class="p">depends on API design</td><td class="y">✓ selective disclosure</td></tr>
+        <tr><td>Forgery resistance</td><td class="p">physical measures — holograms, laser engraving</td><td class="p">the database is authoritative</td><td class="p">cryptographic signatures</td></tr>
+        <tr><td>Revocation / instant update</td><td class="n">✗ a cancelled card is still in your hand</td><td class="y">✓ instant</td><td class="p">needs extra machinery</td></tr>
+        <tr><td>Works remotely / online</td><td class="n">✗ photos are forgeable</td><td class="y">✓</td><td class="y">✓</td></tr>
+        <tr><td>Prevents the verifier from logging you</td><td class="p">partial — seen, but not recorded</td><td class="n">✗ every query is logged</td><td class="y">✓</td></tr>
+      </tbody>
+    </table>
+    <p class="note-sm">Deployments today: the EU's EUDI Wallet and Taiwan's digital credential wallet both ship selective disclosure first (SD-JWT / mdoc); full predicate proofs are still landing.</p>
+  </div>
+  <div class="takeaway"><span class="pip"></span>
+    <p>ZK credentials carry a physical card's offline resilience into the digital world — <span class="hl">and add selective disclosure and query privacy on top.</span></p>
+  </div>
+</section>
+
+<!-- S27 Revocation -->
+<section class="slide" data-notes="主動講缺點會讓工程師聽眾更相信前面所有內容。
+最後那句是整場最誠實的一句:ZK 不能防止 issuer 一開始就簽發錯誤或惡意資料。有人問「ZK 到底保證什麼」時,這句就是答案。
+一句話權衡:中心化用連線換即時性,ZK 用額外撤銷機制換隱私與離線。(~2分鐘)">
+  <div class="kicker"><span class="pip"></span>Part 4 · the cost</div>
+  <h2 class="title">Not a free lunch: revocation</h2>
+  <p class="lead">A ZK proof, once generated, is mathematically true forever. But credentials get revoked — and maths doesn't know that.</p>
+  <div class="body" style="flex-direction:column;gap:16px">
+    <div class="cards3" style="flex:1">
+      <div class="card"><h4>Revocation list</h4>
+        <p>A Merkle tree or accumulator of revoked credentials; the proof additionally shows non-membership. Verifiers sync the root hash periodically — so "offline" really means "offline between syncs."</p></div>
+      <div class="card"><h4>Short-lived credentials</h4>
+        <p>Same idea as JWT expiry: the wallet re-fetches on a schedule. Simple, but partially reintroduces the online dependency you were trying to remove.</p></div>
+      <div class="card"><h4>Periodic re-issuance</h4>
+        <p>The issuer re-signs on a cycle; anything not refreshed expires by itself.</p></div>
+    </div>
+    <div class="card alt" style="padding:16px 22px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:26px">
+        <p style="margin:0;font-size:13.5px"><b>Centralized</b> — revocation is instant; the price is a network round-trip on every single check.</p>
+        <p style="margin:0;font-size:13.5px"><b>ZK</b> — revocation needs extra machinery; what you buy is query privacy and offline capability.</p>
+      </div>
+    </div>
+  </div>
+  <div class="takeaway"><span class="pip"></span>
+    <p><span class="hl">And note what ZK does not prove: it proves the issuer signed this — not that what the issuer signed is true.</span> That layer of trust neither architecture escapes.</p>
+  </div>
+</section>
+
+<!-- S28 Closing -->
+<section class="slide closing" data-notes="收尾問題追問兩層:真正需要的是哪一個 bit?以及,這個 bit 有必要跟第三方要嗎?
+可以帶回聽眾自己的系統:你們有哪支 API 的 request 比 response 更敏感?(~3分鐘,含討論)">
+  <div class="kicker"><span class="pip"></span>Closing</div>
+  <div style="margin-top:34px">
+    <h2>A proof's essence is one bit —</h2>
+    <div class="sub">and nobody needs to be watching when you send it.</div>
+  </div>
+  <div class="body cards3" style="flex:0;margin-top:38px">
+    <div class="card"><h4 style="color:var(--accent)">Randomness</h4><hr class="hair">
+      <p style="font-size:13px">There may be no true randomness anywhere — and cryptography never needed it. Only "the adversary can't compute it."</p></div>
+    <div class="card"><h4 style="color:var(--accent)">Proof</h4><hr class="hair">
+      <p style="font-size:13px">Certainty needn't be 100%: a 2⁻ⁿ cheating bound, with n chosen by you.</p></div>
+    <div class="card"><h4 style="color:var(--accent)">Query privacy</h4><hr class="hair">
+      <p style="font-size:13px">The hard part was never shrinking the answer. It was removing the middleman from the moment of asking.</p></div>
+  </div>
+  <div style="margin-top:auto">
+    <div class="qlab"><span class="pip"></span>One question to take home</div>
+    <div class="q">Where else do we ask a third party a question we could have answered ourselves — and quietly build a log of the asking?</div>
+  </div>
+</section>
+
+<!-- S29 Q&A -->
+<section class="slide qa" data-title="Q &amp; A · interactive demo" data-notes="把 demo 投出來玩一輪當 ending。
+
+【備彈】其他應用:password-less login(證明知道密碼而密碼不離開裝置)、solvency proof(資產 > X 不出示餘額)、可驗證投票、zkML(證明推論出自宣稱的模型而不公開權重)。通用句型:證明某個計算的結果為真,而不揭露輸入。
+【備彈】區塊鏈:Zcash 隱私交易、zk-Rollup 擴容、SNARK vs STARK(證明大小 vs trusted setup)。
+【備彈】效能:proof generation 在手機上目前是數百毫秒到數秒等級,取決於 circuit 大小;verify 是毫秒級。">
+  <div class="kicker"><span class="pip"></span>Closing</div>
+  <div style="margin-top:60px">
+    <h1>Q &amp; A</h1>
+    <hr class="hair" style="width:80px;margin:38px 0 26px">
+    <p style="font-family:var(--serif);font-size:22px;font-weight:700;color:var(--accent)">Try it yourself: The Ali Baba Cave · interactive simulator</p>
+    <p style="font-size:15px;color:var(--ink2);margin-top:12px">Play the verifier and watch a cheater's survival odds collapse to zero. →
+      <a href="cave_demo.html" style="color:var(--accent)">cave_demo.html</a></p>
+  </div>
+</section>
+
+</template>
+
+<script>
+(function(){
+  var tpl = document.getElementById('slides').content;
+  var deck = document.getElementById('deck');
+  deck.appendChild(document.importNode(tpl, true));
+  var slides = Array.prototype.slice.call(deck.querySelectorAll('.slide'));
+  var i = 0, total = slides.length;
+
+  // footers
+  slides.forEach(function(s, idx){
+    if (s.dataset.nofoot !== undefined) return;
+    var f = document.createElement('div');
+    f.className = 'foot';
+    f.innerHTML = '<b>' + String(idx+1).padStart(2,'0') + '</b><span>Proving with Probability</span>';
+    s.appendChild(f);
+  });
+
+  function scale(){
+    var w = window.innerWidth, h = window.innerHeight;
+    var s = Math.min(w/1280, h/720) * 0.94;
+    deck.style.transform = 'scale(' + s + ')';
+  }
+  window.addEventListener('resize', scale); scale();
+
+  function titleOf(s){
+    if (s.dataset.title) return s.dataset.title;
+    var t = s.querySelector('.title, h1, h2');
+    return t ? t.textContent.trim().replace(/\s+/g,' ') : 'Slide';
+  }
+
+  var tocList = document.getElementById('tocList');
+  slides.forEach(function(s, idx){
+    var li = document.createElement('li');
+    li.innerHTML = '<span class="i">' + String(idx+1).padStart(2,'0') + '</span><span class="t">' +
+      titleOf(s) + '</span>';
+    li.addEventListener('click', function(){ go(idx); toggleToc(false); });
+    tocList.appendChild(li);
+  });
+
+  function render(){
+    slides.forEach(function(s, idx){ s.classList.toggle('active', idx === i); });
+    document.getElementById('count').textContent = (i+1) + ' / ' + total;
+    document.getElementById('bar').style.width = ((i)/(total-1)*100) + '%';
+    document.getElementById('notesBody').textContent = slides[i].dataset.notes || '(no notes)';
+    Array.prototype.forEach.call(tocList.children, function(li, idx){
+      li.classList.toggle('cur', idx === i);
+    });
+    if (location.hash !== '#/' + (i+1)) history.replaceState(null, '', '#/' + (i+1));
+  }
+  function go(n){ i = Math.max(0, Math.min(total-1, n)); render(); }
+  function next(){ go(i+1); } function prev(){ go(i-1); }
+
+  function toggleNotes(on){
+    var el = document.getElementById('notes');
+    el.classList.toggle('on', on === undefined ? !el.classList.contains('on') : on);
+  }
+  function toggleToc(on){
+    var el = document.getElementById('toc');
+    el.classList.toggle('on', on === undefined ? !el.classList.contains('on') : on);
+  }
+
+  document.addEventListener('keydown', function(e){
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    var k = e.key;
+    if (k === 'ArrowRight' || k === 'PageDown' || k === ' ' || k === 'Enter'){ e.preventDefault(); next(); }
+    else if (k === 'ArrowLeft' || k === 'PageUp'){ e.preventDefault(); prev(); }
+    else if (k === 'Home'){ go(0); }
+    else if (k === 'End'){ go(total-1); }
+    else if (k === 'n' || k === 'N'){ toggleNotes(); }
+    else if (k === 'o' || k === 'O'){ toggleToc(); }
+    else if (k === 'Escape'){ toggleToc(false); toggleNotes(false); }
+    else if (k === 'f' || k === 'F'){
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen();
+    }
+  });
+
+  document.getElementById('btnNotes').addEventListener('click', function(){ toggleNotes(); });
+  document.getElementById('btnToc').addEventListener('click', function(){ toggleToc(); });
+  document.getElementById('toc').addEventListener('click', function(e){
+    if (e.target.id === 'toc') toggleToc(false);
+  });
+
+  var sx = null;
+  document.addEventListener('touchstart', function(e){ sx = e.touches[0].clientX; }, {passive:true});
+  document.addEventListener('touchend', function(e){
+    if (sx === null) return;
+    var dx = e.changedTouches[0].clientX - sx;
+    if (Math.abs(dx) > 55){ dx < 0 ? next() : prev(); }
+    sx = null;
+  }, {passive:true});
+
+  var m = location.hash.match(/^#\/(\d+)$/);
+  go(m ? parseInt(m[1],10) - 1 : 0);
+})();
+</script>
+</body>
+</html>
